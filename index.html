@@ -44,6 +44,7 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
 .modal .opts button{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px}
 .modal .opts small{display:block;color:var(--sub)}
 .learn{font-size:13px;color:var(--sub);border-left:3px solid var(--gold);padding-left:8px;margin-top:10px}
+.art{width:100%;height:auto;border-radius:10px;display:block;margin-bottom:10px}
 .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;color:#fff;margin-right:6px}
 </style>
 </head>
@@ -54,6 +55,7 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
 
   <div id="game" style="display:none">
     <div class="card">
+      <div id="scene"></div>
       <div class="stats" id="stats"></div>
     </div>
     <div class="card">
@@ -73,6 +75,7 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
   </div>
 
   <div id="title" class="card">
+    <div id="titleArt"></div>
     <p>あなたは、ある国の農村地域で活動を始めたばかりの小さなNGOの代表です。資金・スタッフ・地域との信頼をやりくりしながら、教育・保健・水の3分野を前に進めます。</p>
     <p>目標は、<b>自分たちが去っても続く変化</b>をつくること。お金を使えば成果が出ますが、現地の人たちが主役でなければ、活動は長続きしません。</p>
     <button class="pri" id="start">活動をはじめる</button>
@@ -87,6 +90,39 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const rnd = (a,b) => a + Math.random()*(b-a);
 const MAXM = 24;
 
+/* ---------- イラスト（インラインSVG） ---------- */
+const sc = (sky, inner, ground='#8fbf6a') => `<svg class="art" viewBox="0 0 400 160" role="img" aria-hidden="true"><rect width="400" height="160" fill="${sky}"/><circle cx="350" cy="30" r="16" fill="#ffd45a"/><rect y="115" width="400" height="45" fill="${ground}"/>${inner}</svg>`;
+const person = (x,y,c='#d0617a',s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><circle cy="-22" r="6" fill="#8a5a3c"/><path d="M-6 -14h12l3 20h-18z" fill="${c}"/><rect x="-5" y="6" width="4" height="9" fill="#5a3b28"/><rect x="1" y="6" width="4" height="9" fill="#5a3b28"/></g>`;
+const house = (x,y,c='#e8c9a0',s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-22" y="-26" width="44" height="26" fill="${c}"/><path d="M-27 -26l27-18 27 18z" fill="#b5543a"/><rect x="-5" y="-16" width="10" height="16" fill="#7a4a30"/></g>`;
+const school = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-30" y="-30" width="60" height="30" fill="#f1e4c4"/><path d="M-34 -30l34-18 34 18z" fill="#4a7fc1"/><rect x="-22" y="-22" width="10" height="10" fill="#9fd0ee"/><rect x="12" y="-22" width="10" height="10" fill="#9fd0ee"/><rect x="-5" y="-16" width="10" height="16" fill="#7a4a30"/><path d="M0 -48v-14" stroke="#555" stroke-width="2"/><path d="M0 -62h12l-3 4 3 4h-12z" fill="#d0617a"/></g>`;
+const clinic = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-26" y="-28" width="52" height="28" fill="#fff"/><rect x="-26" y="-32" width="52" height="5" fill="#d0617a"/><rect x="-3" y="-24" width="6" height="16" fill="#d0617a"/><rect x="-8" y="-19" width="16" height="6" fill="#d0617a"/><rect x="-18" y="-10" width="7" height="10" fill="#9fd0ee"/><rect x="11" y="-10" width="7" height="10" fill="#9fd0ee"/></g>`;
+const well = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-14" y="-14" width="28" height="14" fill="#9a8a7a"/><path d="M-16 -14l16-12 16 12z" fill="#6b4a30"/><rect x="-14" y="-26" width="3" height="12" fill="#6b4a30"/><rect x="11" y="-26" width="3" height="12" fill="#6b4a30"/><rect x="-10" y="-8" width="20" height="3" fill="#2fa4c4"/></g>`;
+const tree = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-3" y="-20" width="6" height="20" fill="#7a5230"/><circle cy="-28" r="14" fill="#3f9a5a"/></g>`;
+const cloud = (x,y,c='#fff') => `<g fill="${c}"><ellipse cx="${x}" cy="${y}" rx="26" ry="9"/><ellipse cx="${x+14}" cy="${y-6}" rx="16" ry="9"/></g>`;
+const ART = {
+  title: () => sc('#bfe3f2', cloud(70,30)+cloud(240,22)+tree(30,125,1.1)+school(110,122)+clinic(200,122)+well(275,124)+house(335,124)+person(150,138,'#4a7fc1')+person(235,140,'#d0617a')+person(300,140,'#e0a030')),
+  flood: () => sc('#8a9aa6', cloud(60,26,'#6d7a85')+cloud(200,20,'#6d7a85')+cloud(320,30,'#6d7a85')+`<g stroke="#bfe3ff" stroke-width="2">${Array.from({length:22},(_,i)=>`<path d="M${i*18+6} ${44+(i%3)*10}l-4 12"/>`).join('')}</g><rect y="118" width="400" height="42" fill="#6b9fb8"/><path d="M0 128q25-8 50 0t50 0 50 0 50 0 50 0 50 0 50 0 50 0" stroke="#d6efff" fill="none" stroke-width="2"/>`+clinic(90,120)+house(300,120)+`<path d="M160 118l40 0" stroke="#7a5a3a" stroke-width="6" stroke-dasharray="10 8"/>`, '#7aa070'),
+  donor: () => sc('#cfe8f5', school(90,125)+`<rect x="165" y="70" width="70" height="36" rx="3" fill="#fff" stroke="#999"/><text x="200" y="94" font-size="14" text-anchor="middle" fill="#c0392b" font-weight="bold">COMPANY</text><rect x="198" y="106" width="4" height="22" fill="#7a5230"/>`+person(290,138,'#2a5f8a')+`<g><rect x="316" y="112" width="42" height="26" rx="3" fill="#f4e7b8" stroke="#c9a640"/><text x="337" y="131" font-size="14" text-anchor="middle" fill="#8a6a10" font-weight="bold">200万</text></g>`),
+  corrupt: () => sc('#d9d2c4', `<rect x="20" y="40" width="360" height="75" fill="#c9bfa8"/><rect x="40" y="50" width="60" height="40" fill="#e9e1cf"/>`+person(150,138,'#2a5f8a')+person(250,138,'#555')+`<circle cx="200" cy="122" r="6" fill="#d9a441"/><text x="200" y="125" font-size="8" text-anchor="middle" fill="#fff">¥</text><text x="310" y="78" font-size="30" fill="#c8553d" font-weight="bold">?</text>`, '#a89c84'),
+  teacher: () => sc('#f6ecd2', `<rect x="0" y="0" width="400" height="115" fill="#f3e6c6"/><rect x="40" y="25" width="150" height="70" fill="#2f5f4a" stroke="#7a5230" stroke-width="4"/><text x="115" y="68" font-size="22" fill="#fff" text-anchor="middle">あいうえお</text>`+person(230,138,'#4a7fc1',1.3)+person(300,142,'#d0617a',.8)+person(335,142,'#e0a030',.8)+person(370,142,'#4a9a6a',.8), '#c9a574'),
+  epidemic: () => sc('#e3d7d7', `<rect x="60" y="85" width="140" height="32" rx="4" fill="#fff" stroke="#bbb"/><rect x="70" y="72" width="40" height="18" rx="8" fill="#f2f2f2" stroke="#bbb"/><circle cx="90" cy="70" r="9" fill="#8a5a3c"/><circle cx="90" cy="76" r="1" fill="none"/>`+`<path d="M236 60q10 22 0 32-10-10 0-32z" fill="#2fa4c4"/><path d="M262 78q8 18 0 26-8-8 0-26z" fill="#2fa4c4"/>`+clinic(330,122,.9)+person(240,138,'#fff'), '#c7bcae'),
+  media: () => sc('#cfe8f5', house(70,125)+person(160,138,'#4a9a6a')+person(235,138,'#2a5f8a')+`<rect x="248" y="104" width="22" height="14" rx="2" fill="#333"/><circle cx="262" cy="111" r="4" fill="#9fd0ee"/><rect x="285" y="40" width="80" height="50" rx="4" fill="#333"/><rect x="290" y="45" width="70" height="40" fill="#6fb4d8"/><text x="325" y="72" font-size="14" fill="#fff" text-anchor="middle">NEWS</text>`),
+  rate: () => sc('#e5eef4', `<circle cx="140" cy="75" r="42" fill="#d9a441" stroke="#a8801f" stroke-width="4"/><text x="140" y="92" font-size="52" font-weight="bold" fill="#fff" text-anchor="middle">¥</text><path d="M240 40v70l-18-18m18 18l18-18" stroke="#c8553d" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="320" y="85" font-size="26" fill="#6b7780">円安</text>`, '#cfd8de'),
+  grant: () => sc('#e6f1e8', `<rect x="120" y="22" width="110" height="100" rx="4" fill="#fff" stroke="#999"/>${[0,1,2,3].map(i=>`<rect x="132" y="${36+i*14}" width="${70-(i%2)*18}" height="5" fill="#cfd5d9"/>`).join('')}<circle cx="218" cy="104" r="20" fill="#3f9a5a"/><path d="M208 104l7 7 12-14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+person(290,138,'#2a5f8a')+person(60,138,'#d0617a'), '#a8cf9a'),
+  elder: () => sc('#f3dcb8', tree(50,125,1.2)+`<g transform="translate(180 138) scale(1.2)"><circle cy="-22" r="6" fill="#8a5a3c"/><path d="M-6 -14h12l3 20h-18z" fill="#e8e0d0"/><path d="M-4 -18q4 5 8 0v6q-4 4-8 0z" fill="#ddd"/><rect x="-5" y="6" width="4" height="9" fill="#5a3b28"/><rect x="1" y="6" width="4" height="9" fill="#5a3b28"/><path d="M14 -20v36" stroke="#7a5230" stroke-width="3"/></g>`+person(250,138,'#d0617a')+person(290,140,'#4a7fc1')+person(330,138,'#4a9a6a')+`<path d="M215 80l22 6-22 6z" fill="none"/>`, '#c9b27a'),
+  volunteer: () => sc('#cfe8f5', school(300,122)+[0,1,2,3].map(i=>person(60+i*48,140,['#e0a030','#4a7fc1','#d0617a','#4a9a6a'][i])+`<rect x="${52+i*48}" y="${118}" width="9" height="13" rx="2" fill="#c8553d"/>`).join('')+`<path d="M230 100h20m-6-6l6 6-6 6" stroke="#555" stroke-width="3" fill="none"/>`),
+  end_good: () => sc('#ffe9b8', `<g fill="#ffd45a" opacity=".5">${Array.from({length:9},(_,i)=>`<path d="M${40+i*40} 8l3 8 8 1-6 5 2 8-7-5-7 5 2-8-6-5 8-1z"/>`).join('')}</g>`+tree(30,125,1.1)+school(100,122)+clinic(185,122)+well(255,124)+person(310,140,'#e0a030')+person(345,140,'#d0617a')+person(375,140,'#4a7fc1')+`<path d="M-20 0"/>`),
+  end_mid: () => sc('#d8e6ee', cloud(90,30)+cloud(280,26)+tree(30,125)+school(110,122,.9)+clinic(190,122,.9)+well(255,124)+person(320,140,'#4a7fc1')),
+  end_bad: () => sc('#b8bec4', cloud(90,30,'#8a9299')+cloud(280,26,'#8a9299')+house(110,124,'#bdb4a6')+well(200,124)+person(290,140,'#777')+`<path d="M60 110l8-8m0 8l-8-8" stroke="#8a9299"/>`, '#a8b098'),
+};
+const art = k => (ART[k]||ART.title)();
+function sceneArt(){
+  const p=G.prog, k=v=>.6+v/250, fl=v=>v>60?`<circle cx="0" cy="3" r="2.5" fill="#f08aa8"/>`:'';
+  return sc(G.trust<30?'#c9d3d9':'#bfe3f2', cloud(70,28)+cloud(250,22)+tree(25,125)+tree(375,127)
+    +school(95,124,k(p.edu))+clinic(200,124,k(p.hlt))+well(290,126,k(p.wtr))
+    +person(145,141,'#4a7fc1')+person(250,141,'#d0617a')+(G.own>40?person(330,141,'#e0a030'):'')
+    +(p.edu>60?`<g transform="translate(60 138)">${fl(p.edu)}</g>`:'')+(G.sup>70?`<circle cx="350" cy="30" r="22" fill="#ffd45a" opacity=".4"/>`:''));
+}
 const AREAS = [
   {id:'edu', name:'教育', color:'var(--edu)', desc:'学校運営・教員研修・教材'},
   {id:'hlt', name:'保健', color:'var(--hlt)', desc:'診療所・母子保健・予防接種'},
@@ -175,6 +211,7 @@ function bar(v,c){ return `<div class="bar"><i style="width:${clamp(v,0,100)}%;b
 function render(){
   G.trust=clamp(G.trust,0,100); G.sup=clamp(G.sup,0,100); G.morale=clamp(G.morale,0,100); G.own=clamp(G.own,0,100);
   AREAS.forEach(a=>G.prog[a.id]=clamp(G.prog[a.id],0,100));
+  $('#scene').innerHTML = sceneArt();
   $('#stats').innerHTML = `
     <div class="stat"><span>経過</span><b>${G.m} / ${MAXM}か月</b></div>
     <div class="stat"><span>資金</span><b style="color:${G.funds<100?'var(--warn)':'inherit'}">${Math.round(G.funds)}万円</b></div>
@@ -258,11 +295,11 @@ function shrinkAssign(){
   }
 }
 function showEvent(ev){
-  showModal(`<h2>${ev.title}</h2><p>${ev.text}</p><div class="opts">${ev.opts.map((o,i)=>`<button data-i="${i}">${o.t}<small>${o.s}</small></button>`).join('')}</div>`);
+  showModal(`${art(ev.id)}<h2>${ev.title}</h2><p>${ev.text}</p><div class="opts">${ev.opts.map((o,i)=>`<button data-i="${i}">${o.t}<small>${o.s}</small></button>`).join('')}</div>`);
   $('#box').onclick = e=>{
     const b=e.target.closest('button[data-i]'); if(!b) return;
     ev.opts[+b.dataset.i].fn(G);
-    showModal(`<h2>${ev.title}</h2><p>${ev.opts[+b.dataset.i].t} を選びました。</p><div class="learn">💡 ${ev.learn}</div><div style="margin-top:14px;text-align:right"><button class="pri" id="ok">次へ</button></div>`);
+    showModal(`${art(ev.id)}<h2>${ev.title}</h2><p>${ev.opts[+b.dataset.i].t} を選びました。</p><div class="learn">💡 ${ev.learn}</div><div style="margin-top:14px;text-align:right"><button class="pri" id="ok">次へ</button></div>`);
     $('#box').onclick = e2=>{ if(e2.target.id==='ok'){ hideModal(); if(G.funds<0){finish('資金ショート');return;} nextMonth(); render(); } };
     render();
   };
@@ -283,7 +320,7 @@ function finish(reason){
   else if(score>=55){ rank='A：確かな成果を残した'; msg='多くの人の暮らしが良くなりました。次は「自立」をさらに意識すると、変化が長続きします。'; }
   else if(score>=40){ rank='B：道半ば'; msg='成果は出ましたが、支援が止まると元に戻る不安が残ります。地域との対話を増やしましょう。'; }
   else { rank='C：課題が多く残った'; msg='活動を通じて多くを学びました。信頼と自立、資金のバランスを見直してみましょう。'; }
-  showModal(`<h2>${reason?'ゲームオーバー：'+reason:'2年間の活動が終了しました'}</h2>
+  showModal(`${art(reason||score<40?'end_bad':score>=70?'end_good':'end_mid')}<h2>${reason?'ゲームオーバー：'+reason:'2年間の活動が終了しました'}</h2>
     <p><b>評価：${rank}</b>（スコア ${score}）</p><p>${msg}</p>
     <p class="sub">教育 ${Math.round(G.prog.edu)}% ／ 保健 ${Math.round(G.prog.hlt)}% ／ 水・衛生 ${Math.round(G.prog.wtr)}%<br>
     支援を受けた人 ${G.people.toLocaleString()}人 ／ 地域の信頼 ${Math.round(G.trust)} ／ 自立度 ${Math.round(G.own)}</p>
@@ -292,6 +329,7 @@ function finish(reason){
   $('#box').onclick=null;
 }
 
+$('#titleArt').innerHTML = art('title');
 $('#end').onclick = endTurn;
 $('#start').onclick = ()=>{ $('#title').style.display='none'; $('#game').style.display='block'; G.say('NGOの活動がはじまった。'); render(); };
 </script>
