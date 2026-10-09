@@ -49,6 +49,12 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
 .modal .opts small{display:block;color:var(--sub);font-size:13px}
 .learn{font-size:14px;color:var(--sub);border-left:3px solid var(--gold);padding-left:8px;margin-top:10px}
 .art{width:100%;height:auto;border-radius:10px;display:block;margin-bottom:10px}
+.thumb{width:128px;flex:none}.thumb .art{margin:0}
+#tip{border-left:5px solid var(--gold)}#tip p{margin:4px 0 0}
+details summary{cursor:pointer;font-weight:bold}
+details ul{margin:8px 0 0;padding-left:20px}details li{margin:4px 0}
+.gl dt{font-weight:bold;margin-top:8px}.gl dd{margin:2px 0 0 0;color:var(--sub)}
+.quiz-ok{color:var(--main-d);font-weight:bold}.quiz-ng{color:var(--warn);font-weight:bold}
 .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;color:#fff;margin-right:6px}
 </style>
 </head>
@@ -62,6 +68,7 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
       <div id="scene"></div>
       <div class="stats" id="stats"></div>
     </div>
+    <div class="card" id="tip"></div>
     <div class="card">
       <b><span class="ic">🗺️</span>活動地域の状況</b>
       <div id="projects"></div>
@@ -75,6 +82,8 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
       <div class="acts" id="acts"></div>
     </div>
     <div style="text-align:center;margin:14px 0"><button class="pri" id="end">今月を終える ▶</button></div>
+    <div class="card"><details id="notes"><summary>📓 学びノート（<span id="ncount">0</span>件）</summary><ul id="nlist"></ul></details>
+      <details style="margin-top:10px"><summary>📖 用語集</summary><dl class="gl" id="gloss"></dl></details></div>
     <div class="card"><b><span class="ic">📒</span>活動の記録</b><div id="log"></div></div>
   </div>
 
@@ -94,46 +103,133 @@ const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
 const rnd = (a,b) => a + Math.random()*(b-a);
 const MAXM = 24;
 
-/* ---------- イラスト（インラインSVG） ---------- */
-const sc = (sky, inner, ground='#8fbf6a') => `<svg class="art" viewBox="0 0 400 160" role="img" aria-hidden="true"><rect width="400" height="160" fill="${sky}"/><circle cx="350" cy="30" r="16" fill="#ffd45a"/><rect y="115" width="400" height="45" fill="${ground}"/>${inner}</svg>`;
-const person = (x,y,c='#d0617a',s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><circle cy="-22" r="6" fill="#8a5a3c"/><path d="M-6 -14h12l3 20h-18z" fill="${c}"/><rect x="-5" y="6" width="4" height="9" fill="#5a3b28"/><rect x="1" y="6" width="4" height="9" fill="#5a3b28"/></g>`;
-const house = (x,y,c='#e8c9a0',s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-22" y="-26" width="44" height="26" fill="${c}"/><path d="M-27 -26l27-18 27 18z" fill="#b5543a"/><rect x="-5" y="-16" width="10" height="16" fill="#7a4a30"/></g>`;
-const school = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-30" y="-30" width="60" height="30" fill="#f1e4c4"/><path d="M-34 -30l34-18 34 18z" fill="#4a7fc1"/><rect x="-22" y="-22" width="10" height="10" fill="#9fd0ee"/><rect x="12" y="-22" width="10" height="10" fill="#9fd0ee"/><rect x="-5" y="-16" width="10" height="16" fill="#7a4a30"/><path d="M0 -48v-14" stroke="#555" stroke-width="2"/><path d="M0 -62h12l-3 4 3 4h-12z" fill="#d0617a"/></g>`;
-const clinic = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-26" y="-28" width="52" height="28" fill="#fff"/><rect x="-26" y="-32" width="52" height="5" fill="#d0617a"/><rect x="-3" y="-24" width="6" height="16" fill="#d0617a"/><rect x="-8" y="-19" width="16" height="6" fill="#d0617a"/><rect x="-18" y="-10" width="7" height="10" fill="#9fd0ee"/><rect x="11" y="-10" width="7" height="10" fill="#9fd0ee"/></g>`;
-const well = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-14" y="-14" width="28" height="14" fill="#9a8a7a"/><path d="M-16 -14l16-12 16 12z" fill="#6b4a30"/><rect x="-14" y="-26" width="3" height="12" fill="#6b4a30"/><rect x="11" y="-26" width="3" height="12" fill="#6b4a30"/><rect x="-10" y="-8" width="20" height="3" fill="#2fa4c4"/></g>`;
-const tree = (x,y,s=1) => `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-3" y="-20" width="6" height="20" fill="#7a5230"/><circle cy="-28" r="14" fill="#3f9a5a"/></g>`;
-const cloud = (x,y,c='#fff') => `<g fill="${c}"><ellipse cx="${x}" cy="${y}" rx="26" ry="9"/><ellipse cx="${x+14}" cy="${y-6}" rx="16" ry="9"/></g>`;
+/* ---------- イラスト（インラインSVG・陰影つき） ---------- */
+let UID = 0;
+const sc = (inner, o = {}) => {
+  const u = 'u' + (++UID), [t, b] = o.sky || ['#5fb0e6', '#d9f0fb'], [g1, g2] = o.ground || ['#a4c972', '#6f9f4e'];
+  const hz = o.horizon || 112;
+  const tufts = o.indoor ? '' : `<g stroke="#4f7d3a" stroke-width="1.2" opacity=".55" fill="none"><path d="M20 130l2-5 2 5M70 150l2-5 2 5M130 142l2-5 2 5M215 152l2-5 2 5M300 146l2-5 2 5M372 138l2-5 2 5M255 128l2-5 2 5M45 120l2-5 2 5"/></g>`;
+  return `<svg class="art" viewBox="0 0 400 160" role="img" aria-hidden="true"><defs>
+<linearGradient id="${u}s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${t}"/><stop offset="1" stop-color="${b}"/></linearGradient>
+<linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${g1}"/><stop offset="1" stop-color="${g2}"/></linearGradient>
+<radialGradient id="${u}u"><stop offset="0" stop-color="#fff6c8"/><stop offset=".35" stop-color="#ffe27a" stop-opacity=".9"/><stop offset="1" stop-color="#ffe27a" stop-opacity="0"/></radialGradient></defs>
+<rect width="400" height="160" fill="url(#${u}s)"/>
+${o.nosun || o.indoor ? '' : `<circle cx="340" cy="32" r="46" fill="url(#${u}u)"/><circle cx="340" cy="32" r="12" fill="#fff6c0"/>`}
+${o.indoor ? '' : `<path d="M0 104q40-26 90-12t110-6 120 4 80-8v36H0z" fill="${o.hill || '#8db89a'}" opacity=".65"/><path d="M0 110q60-14 120-4t130 0 150-6v32H0z" fill="${o.hill2 || '#79a888'}" opacity=".9"/>`}
+<rect y="${hz}" width="400" height="${160 - hz}" fill="url(#${u}g)"/>${tufts}${inner}</svg>`;
+};
+const cl = (x, y, c = '#fff', s = 1) => `<g fill="${c}" transform="translate(${x} ${y}) scale(${s})" opacity=".95"><ellipse rx="26" ry="8"/><ellipse cx="14" cy="-6" rx="16" ry="9"/><ellipse cx="-12" cy="-5" rx="12" ry="7"/></g>`;
+const person = (x, y, c = '#d0617a', s = 1, o = {}) => {
+  const skin = o.skin || '#8a5a3c', hair = o.hair || '#241610', pants = o.pants || '#3d4352';
+  return `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="15" rx="10" ry="2.6" fill="#000" opacity=".22"/>
+<rect x="-5" y="3" width="4.4" height="12" rx="1.5" fill="${pants}"/><rect x="0.6" y="3" width="4.4" height="12" rx="1.5" fill="${pants}"/>
+<rect x="-5.5" y="13" width="5.5" height="2.4" rx="1" fill="#222"/><rect x="0.5" y="13" width="5.5" height="2.4" rx="1" fill="#222"/>
+<path d="M-7 -14q7-4 14 0l2 19h-18z" fill="${c}"/><path d="M1 -15q6 0 8 3l2 17h-10z" fill="#000" opacity=".14"/>
+${o.vest ? '<path d="M-7 -14l5 1v18h-8z" fill="#f08a2c"/><path d="M7 -14l-5 1v18h8z" fill="#f08a2c"/><path d="M-6 -2h12" stroke="#fff" stroke-width="1" opacity=".8"/>' : ''}
+<rect x="-10.5" y="-13" width="4" height="13" rx="2" fill="${skin}" transform="rotate(8 -8 -13)"/><rect x="6.5" y="-13" width="4" height="13" rx="2" fill="${skin}" transform="rotate(-8 8 -13)"/>
+<rect x="-2" y="-19" width="4" height="5" fill="${skin}"/><circle cy="-24" r="6.2" fill="${skin}"/><circle cx="3" cy="-23" r="5" fill="#000" opacity=".08"/>
+<path d="M-6.6 -24.5q.6-7.5 6.6-7.5t6.6 7.5q-3-3.4-6.6-3.4t-6.6 3.4z" fill="${hair}"/>
+<circle cx="-2.2" cy="-23.5" r=".8" fill="#1b1b1b"/><circle cx="2.2" cy="-23.5" r=".8" fill="#1b1b1b"/><path d="M-1.6 -21q1.6 1.2 3.2 0" stroke="#5a2a1a" stroke-width=".7" fill="none"/>
+${o.hat ? `<path d="M-8 -29h16l-2-4h-12z" fill="${o.hat}"/>` : ''}${o.scarf ? `<path d="M-7 -29q7-7 14 0l-1 3q-6-4-12 0z" fill="${o.scarf}"/>` : ''}${o.extra || ''}</g>`;
+};
+const kid = (x, y, c, o) => person(x, y, c, .62, o);
+const house = (x, y, wall = '#e6c79c', roof = '#b5543a', s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="1" rx="30" ry="3" fill="#000" opacity=".2"/><rect x="-22" y="-27" width="44" height="27" fill="${wall}"/><rect x="8" y="-27" width="14" height="27" fill="#000" opacity=".12"/><rect x="-22" y="-4" width="44" height="4" fill="#000" opacity=".12"/><path d="M-28 -27l28-19 28 19z" fill="${roof}"/><path d="M0 -46l28 19h-12z" fill="#000" opacity=".15"/><path d="M-22 -33h44M-14 -39h28" stroke="#000" stroke-opacity=".15"/><rect x="-5" y="-17" width="10" height="17" rx="1" fill="#6e4328"/><circle cx="3" cy="-8" r=".9" fill="#e8c46a"/><rect x="-18" y="-21" width="8" height="8" fill="#a9d6ee" stroke="#6e4328"/><path d="M-14 -21v8M-18 -17h8" stroke="#6e4328" stroke-width=".8"/><rect x="11" y="-21" width="8" height="8" fill="#a9d6ee" stroke="#6e4328"/></g>`;
+const school = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="1" rx="46" ry="3.5" fill="#000" opacity=".2"/><rect x="-38" y="-32" width="76" height="32" fill="#f3e6c6"/><rect x="16" y="-32" width="22" height="32" fill="#000" opacity=".1"/><rect x="-38" y="-5" width="76" height="5" fill="#b9a67e"/><path d="M-43 -32l43-16 43 16z" fill="#3f73b4"/><path d="M0 -48l43 16h-14z" fill="#000" opacity=".15"/><rect x="-31" y="-25" width="12" height="11" fill="#a9d6ee" stroke="#7a5a3a"/><path d="M-25 -25v11M-31 -19.5h12" stroke="#7a5a3a" stroke-width=".7"/><rect x="19" y="-25" width="12" height="11" fill="#a9d6ee" stroke="#7a5a3a"/><rect x="-6" y="-19" width="12" height="19" fill="#6e4328"/><path d="M-9 0h18l2 3h-22z" fill="#cdbd98"/><rect x="-14" y="-31" width="28" height="7" rx="1" fill="#fff"/><text y="-25.6" font-size="5.6" text-anchor="middle" fill="#3f73b4" font-weight="bold">SCHOOL</text><path d="M0 -48v-22" stroke="#666" stroke-width="1.6"/><path d="M0 -70h14l-4 4 4 4h-14z" fill="#d0463a"/></g>`;
+const clinic = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="1" rx="38" ry="3" fill="#000" opacity=".2"/><rect x="-32" y="-30" width="64" height="30" fill="#fbfbf8"/><rect x="14" y="-30" width="18" height="30" fill="#000" opacity=".08"/><rect x="-34" y="-34" width="68" height="6" fill="#cf4d63"/><rect x="-9" y="-54" width="18" height="18" rx="2" fill="#fff" stroke="#cf4d63"/><rect x="-2" y="-51" width="4" height="12" fill="#cf4d63"/><rect x="-6" y="-47" width="12" height="4" fill="#cf4d63"/><rect x="-25" y="-22" width="11" height="10" fill="#a9d6ee" stroke="#aaa"/><rect x="14" y="-22" width="11" height="10" fill="#a9d6ee" stroke="#aaa"/><rect x="-6" y="-17" width="12" height="17" fill="#8fc4dc" stroke="#aaa"/><path d="M-6 -17h12" stroke="#fff" stroke-width=".6"/></g>`;
+const well = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="1" rx="20" ry="3" fill="#000" opacity=".22"/><path d="M-14 -16h28v16h-28z" fill="#a39482"/><path d="M-14 -11h28M-14 -6h28M-5 -16v5M5 -11v5M-2 -6v6" stroke="#7d7060" stroke-width=".8"/><rect x="-14" y="-3" width="28" height="3" fill="#000" opacity=".12"/><ellipse cy="-16" rx="14" ry="3" fill="#2f86a8"/><rect x="-15" y="-34" width="3" height="19" fill="#6b4a30"/><rect x="12" y="-34" width="3" height="19" fill="#6b4a30"/><path d="M-19 -33l19-11 19 11z" fill="#8a5a36"/><path d="M0 -33v14" stroke="#555" stroke-width=".8"/><path d="M-3 -19h6l-1 5h-4z" fill="#b5651d"/></g>`;
+const tree = (x, y, s = 1) => `<g transform="translate(${x} ${y}) scale(${s})"><ellipse cy="1" rx="22" ry="3" fill="#000" opacity=".2"/><path d="M-3 0q1-18-2-26l3-2q0 10 2 28z" fill="#6e4a2a"/><path d="M2 -20q8-8 14-12" stroke="#6e4a2a" stroke-width="3" fill="none"/><ellipse cy="-36" rx="28" ry="9" fill="#3d8a4c"/><ellipse cx="-6" cy="-39" rx="20" ry="6" fill="#52a35e"/><ellipse cx="14" cy="-31" rx="14" ry="5" fill="#2f7340"/></g>`;
+const can = (x, y, c = '#e0b31f') => `<g transform="translate(${x} ${y})"><rect x="-4" y="-9" width="8" height="9" rx="1" fill="${c}"/><rect x="-2" y="-12" width="4" height="3" fill="#8a6a10"/><path d="M-4 -6h8" stroke="#000" stroke-opacity=".2"/></g>`;
+const crops = (x, y, n = 6) => Array.from({ length: n }, (_, i) => `<g transform="translate(${x + i * 9} ${y})" stroke="#3a7a2e" stroke-width="1.4" fill="none"><path d="M0 0q-3-6-5-8M0 0q0-8 0-10M0 0q3-6 5-8"/></g>`).join('');
+const rain = n => `<g stroke="#d4eaff" stroke-width="1.4" opacity=".8">${Array.from({ length: n }, (_, i) => `<path d="M${(i * 19 + 5) % 400} ${(i * 37) % 110 + 20}l-4 11"/>`).join('')}</g>`;
+const desk = (x, y, w = 40) => `<g transform="translate(${x} ${y})"><rect width="${w}" height="5" fill="#a67a4e"/><rect y="5" width="${w}" height="2" fill="#6e4a2a"/><rect x="3" y="7" width="3" height="14" fill="#6e4a2a"/><rect x="${w - 6}" y="7" width="3" height="14" fill="#6e4a2a"/></g>`;
+const FLOOR = { indoor: true, nosun: true, horizon: 118, ground: ['#b89c78', '#8d7556'] };
+const wall = (c = '#efe6d2') => `<rect width="400" height="118" fill="${c}"/><rect y="108" width="400" height="10" fill="#000" opacity=".08"/>`;
+
 const ART = {
-  title: () => sc('#bfe3f2', cloud(70,30)+cloud(240,22)+tree(30,125,1.1)+school(110,122)+clinic(200,122)+well(275,124)+house(335,124)+person(150,138,'#4a7fc1')+person(235,140,'#d0617a')+person(300,140,'#e0a030')),
-  flood: () => sc('#8a9aa6', cloud(60,26,'#6d7a85')+cloud(200,20,'#6d7a85')+cloud(320,30,'#6d7a85')+`<g stroke="#bfe3ff" stroke-width="2">${Array.from({length:22},(_,i)=>`<path d="M${i*18+6} ${44+(i%3)*10}l-4 12"/>`).join('')}</g><rect y="118" width="400" height="42" fill="#6b9fb8"/><path d="M0 128q25-8 50 0t50 0 50 0 50 0 50 0 50 0 50 0 50 0" stroke="#d6efff" fill="none" stroke-width="2"/>`+clinic(90,120)+house(300,120)+`<path d="M160 118l40 0" stroke="#7a5a3a" stroke-width="6" stroke-dasharray="10 8"/>`, '#7aa070'),
-  donor: () => sc('#cfe8f5', school(90,125)+`<rect x="165" y="70" width="70" height="36" rx="3" fill="#fff" stroke="#999"/><text x="200" y="94" font-size="14" text-anchor="middle" fill="#c0392b" font-weight="bold">COMPANY</text><rect x="198" y="106" width="4" height="22" fill="#7a5230"/>`+person(290,138,'#2a5f8a')+`<g><rect x="316" y="112" width="42" height="26" rx="3" fill="#f4e7b8" stroke="#c9a640"/><text x="337" y="131" font-size="14" text-anchor="middle" fill="#8a6a10" font-weight="bold">200万</text></g>`),
-  corrupt: () => sc('#d9d2c4', `<rect x="20" y="40" width="360" height="75" fill="#c9bfa8"/><rect x="40" y="50" width="60" height="40" fill="#e9e1cf"/>`+person(150,138,'#2a5f8a')+person(250,138,'#555')+`<circle cx="200" cy="122" r="6" fill="#d9a441"/><text x="200" y="125" font-size="8" text-anchor="middle" fill="#fff">¥</text><text x="310" y="78" font-size="30" fill="#c8553d" font-weight="bold">?</text>`, '#a89c84'),
-  teacher: () => sc('#f6ecd2', `<rect x="0" y="0" width="400" height="115" fill="#f3e6c6"/><rect x="40" y="25" width="150" height="70" fill="#2f5f4a" stroke="#7a5230" stroke-width="4"/><text x="115" y="68" font-size="22" fill="#fff" text-anchor="middle">あいうえお</text>`+person(230,138,'#4a7fc1',1.3)+person(300,142,'#d0617a',.8)+person(335,142,'#e0a030',.8)+person(370,142,'#4a9a6a',.8), '#c9a574'),
-  epidemic: () => sc('#e3d7d7', `<rect x="60" y="85" width="140" height="32" rx="4" fill="#fff" stroke="#bbb"/><rect x="70" y="72" width="40" height="18" rx="8" fill="#f2f2f2" stroke="#bbb"/><circle cx="90" cy="70" r="9" fill="#8a5a3c"/><circle cx="90" cy="76" r="1" fill="none"/>`+`<path d="M236 60q10 22 0 32-10-10 0-32z" fill="#2fa4c4"/><path d="M262 78q8 18 0 26-8-8 0-26z" fill="#2fa4c4"/>`+clinic(330,122,.9)+person(240,138,'#fff'), '#c7bcae'),
-  media: () => sc('#cfe8f5', house(70,125)+person(160,138,'#4a9a6a')+person(235,138,'#2a5f8a')+`<rect x="248" y="104" width="22" height="14" rx="2" fill="#333"/><circle cx="262" cy="111" r="4" fill="#9fd0ee"/><rect x="285" y="40" width="80" height="50" rx="4" fill="#333"/><rect x="290" y="45" width="70" height="40" fill="#6fb4d8"/><text x="325" y="72" font-size="14" fill="#fff" text-anchor="middle">NEWS</text>`),
-  rate: () => sc('#e5eef4', `<circle cx="140" cy="75" r="42" fill="#d9a441" stroke="#a8801f" stroke-width="4"/><text x="140" y="92" font-size="52" font-weight="bold" fill="#fff" text-anchor="middle">¥</text><path d="M240 40v70l-18-18m18 18l18-18" stroke="#c8553d" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" fill="none"/><text x="320" y="85" font-size="26" fill="#6b7780">円安</text>`, '#cfd8de'),
-  grant: () => sc('#e6f1e8', `<rect x="120" y="22" width="110" height="100" rx="4" fill="#fff" stroke="#999"/>${[0,1,2,3].map(i=>`<rect x="132" y="${36+i*14}" width="${70-(i%2)*18}" height="5" fill="#cfd5d9"/>`).join('')}<circle cx="218" cy="104" r="20" fill="#3f9a5a"/><path d="M208 104l7 7 12-14" stroke="#fff" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`+person(290,138,'#2a5f8a')+person(60,138,'#d0617a'), '#a8cf9a'),
-  elder: () => sc('#f3dcb8', tree(50,125,1.2)+`<g transform="translate(180 138) scale(1.2)"><circle cy="-22" r="6" fill="#8a5a3c"/><path d="M-6 -14h12l3 20h-18z" fill="#e8e0d0"/><path d="M-4 -18q4 5 8 0v6q-4 4-8 0z" fill="#ddd"/><rect x="-5" y="6" width="4" height="9" fill="#5a3b28"/><rect x="1" y="6" width="4" height="9" fill="#5a3b28"/><path d="M14 -20v36" stroke="#7a5230" stroke-width="3"/></g>`+person(250,138,'#d0617a')+person(290,140,'#4a7fc1')+person(330,138,'#4a9a6a')+`<path d="M215 80l22 6-22 6z" fill="none"/>`, '#c9b27a'),
-  volunteer: () => sc('#cfe8f5', school(300,122)+[0,1,2,3].map(i=>person(60+i*48,140,['#e0a030','#4a7fc1','#d0617a','#4a9a6a'][i])+`<rect x="${52+i*48}" y="${118}" width="9" height="13" rx="2" fill="#c8553d"/>`).join('')+`<path d="M230 100h20m-6-6l6 6-6 6" stroke="#555" stroke-width="3" fill="none"/>`),
-  end_good: () => sc('#ffe9b8', `<g fill="#ffd45a" opacity=".5">${Array.from({length:9},(_,i)=>`<path d="M${40+i*40} 8l3 8 8 1-6 5 2 8-7-5-7 5 2-8-6-5 8-1z"/>`).join('')}</g>`+tree(30,125,1.1)+school(100,122)+clinic(185,122)+well(255,124)+person(310,140,'#e0a030')+person(345,140,'#d0617a')+person(375,140,'#4a7fc1')+`<path d="M-20 0"/>`),
-  end_mid: () => sc('#d8e6ee', cloud(90,30)+cloud(280,26)+tree(30,125)+school(110,122,.9)+clinic(190,122,.9)+well(255,124)+person(320,140,'#4a7fc1')),
-  end_bad: () => sc('#b8bec4', cloud(90,30,'#8a9299')+cloud(280,26,'#8a9299')+house(110,124,'#bdb4a6')+well(200,124)+person(290,140,'#777')+`<path d="M60 110l8-8m0 8l-8-8" stroke="#8a9299"/>`, '#a8b098'),
+  title: () => sc(tree(30, 124, 1.1) + tree(380, 128, .9) + school(105, 124) + clinic(200, 124) + well(282, 126) + house(350, 124, '#e6c79c', '#a8573a', .85)
+    + `<path d="M120 160q40-18 90-34h30q-30 22-50 34z" fill="#c9a877" opacity=".6"/>`
+    + person(150, 140, '#3f73b4', 1, { vest: 1 }) + person(232, 142, '#d0617a', 1, { skin: '#7a4a2c', scarf: '#e0a030' }) + can(250, 156) + kid(180, 146, '#e0a030') + kid(205, 148, '#4a9a6a') + kid(305, 146, '#d0617a') + crops(310, 156, 4)),
+  flood: () => sc(rain(26) + cl(60, 24, '#5d6a74', 1.3) + cl(200, 18, '#56626c', 1.4) + cl(330, 28, '#5d6a74', 1.2)
+    + clinic(95, 124) + house(310, 122) + `<rect y="124" width="400" height="36" fill="#7f9fb0" opacity=".88"/><path d="M0 132q25-6 50 0t50 0 50 0 50 0 50 0 50 0 50 0 50 0M0 146q25-6 50 0t50 0 50 0 50 0 50 0 50 0 50 0 50 0" stroke="#dff1ff" fill="none" opacity=".7"/>`
+    + `<path d="M160 118h50" stroke="#7a5a3a" stroke-width="5" stroke-dasharray="10 8"/>` + person(200, 128, '#3f73b4', .95, { vest: 1, extra: '<rect x="-9" y="-30" width="18" height="3" fill="#f08a2c"/>' }) + `<rect x="170" y="136" width="46" height="9" rx="4" fill="#c8553d"/><rect x="170" y="140" width="46" height="5" fill="#000" opacity=".15"/>`,
+    { sky: ['#6d7b86', '#b9c4cb'], nosun: true, ground: ['#7f9a68', '#5f7a4e'], hill: '#7d8f92', hill2: '#6b807f' }),
+  donor: () => sc(school(95, 126) + tree(360, 126, .9)
+    + `<rect x="168" y="62" width="82" height="42" rx="3" fill="#fff" stroke="#8a8a8a" stroke-width="2"/><rect x="172" y="66" width="22" height="22" rx="4" fill="#c0392b"/><path d="M178 78l5 5 8-9" stroke="#fff" stroke-width="3" fill="none"/><text x="222" y="80" font-size="11" text-anchor="middle" fill="#c0392b" font-weight="bold">COMPANY</text><text x="222" y="97" font-size="8" text-anchor="middle" fill="#555">Supported by</text><rect x="204" y="104" width="4" height="26" fill="#6e4a2a"/><rect x="233" y="104" width="4" height="26" fill="#6e4a2a" transform="translate(-14 0)"/>`
+    + person(285, 138, '#27384f', 1.05, { skin: '#d9a982', hair: '#222', pants: '#1c2535', extra: '<rect x="8" y="2" width="12" height="9" rx="1" fill="#6e4a2a"/>' })
+    + `<g transform="translate(330 112)"><rect width="52" height="28" rx="3" fill="#f6e7b3" stroke="#c9a640" stroke-width="1.5"/><text x="26" y="19" font-size="13" text-anchor="middle" fill="#7a5a08" font-weight="bold">200万円</text></g>` + person(145, 142, '#3f73b4', 1, { vest: 1 }) + kid(170, 148, '#d0617a')),
+  corrupt: () => sc(wall('#e9dfc8') + `<rect x="30" y="22" width="86" height="56" fill="#cfe4ef" stroke="#8a7a60" stroke-width="3"/><path d="M73 22v56M30 50h86" stroke="#8a7a60" stroke-width="2"/><rect x="290" y="30" width="70" height="46" fill="#fff" stroke="#999"/><text x="325" y="58" font-size="10" text-anchor="middle" fill="#555">許可証</text>`
+    + desk(130, 110, 150) + `<rect x="190" y="104" width="38" height="6" fill="#fff" stroke="#bbb"/><rect x="228" y="100" width="22" height="10" fill="#f6efe0" stroke="#aaa"/><path d="M228 100l11 6 11-6" stroke="#aaa" fill="none"/>`
+    + person(165, 116, '#7d8791', 1.05, { skin: '#c99468', hair: '#333', pants: '#333' }) + person(262, 116, '#3f73b4', 1.05, { vest: 1 }) + `<text x="208" y="70" font-size="30" fill="#c8553d" font-weight="bold" text-anchor="middle">?</text>`, FLOOR),
+  teacher: () => sc(wall('#f2e7c9') + `<rect x="30" y="16" width="170" height="74" fill="#2f5f4a" stroke="#7a5230" stroke-width="5"/><rect x="30" y="86" width="170" height="5" fill="#a67a4e"/><text x="115" y="48" font-size="19" fill="#fff" text-anchor="middle" opacity=".92">あいうえお</text><text x="115" y="72" font-size="15" fill="#fff" text-anchor="middle" opacity=".92">1 + 2 = 3</text><rect x="290" y="20" width="76" height="60" fill="#cfe9f7" stroke="#8a7a60" stroke-width="3"/><path d="M328 20v60M290 50h76" stroke="#8a7a60" stroke-width="2"/>`
+    + person(235, 118, '#4a7fc1', 1.2, { skin: '#6f4428', extra: '<rect x="12" y="-26" width="2" height="38" fill="#e8c46a" transform="rotate(-25 12 -26)"/>' })
+    + desk(40, 128, 40) + desk(120, 128, 40) + desk(250, 134, 40) + desk(320, 134, 40) + kid(60, 126, '#d0617a') + kid(140, 126, '#e0a030') + kid(270, 132, '#4a9a6a') + kid(340, 132, '#3f73b4'), FLOOR),
+  epidemic: () => sc(wall('#e7efef') + `<rect x="300" y="26" width="70" height="56" fill="#cfe9f7" stroke="#9aa" stroke-width="3"/><rect x="40" y="20" width="26" height="26" rx="3" fill="#fff" stroke="#cf4d63"/><rect x="51" y="24" width="4" height="18" fill="#cf4d63"/><rect x="44" y="31" width="18" height="4" fill="#cf4d63"/>`
+    + `<rect x="80" y="82" width="170" height="30" rx="4" fill="#fff" stroke="#b8c4c4"/><rect x="82" y="76" width="168" height="18" rx="6" fill="#bcd6e6"/><rect x="86" y="70" width="34" height="14" rx="7" fill="#fff" stroke="#c8d2d2"/><circle cx="106" cy="68" r="9" fill="#8a5a3c"/><path d="M97 66q9-8 18 0" fill="#241610"/><path d="M103 71q3 2 6 0" stroke="#5a2a1a" fill="none"/><rect x="80" y="112" width="3" height="10" fill="#888"/><rect x="247" y="112" width="3" height="10" fill="#888"/>`
+    + `<g transform="translate(270 40)"><path d="M0 0v50" stroke="#999" stroke-width="2"/><rect x="-8" y="-6" width="16" height="22" rx="3" fill="#cfe9f7" stroke="#8aa"/><path d="M0 16q6 12 14 34" stroke="#9cc" fill="none"/></g>`
+    + person(285, 122, '#fff', 1.15, { skin: '#7a4a2c', hat: '#fff', pants: '#d6dde0', extra: '<path d="M-6 -24h12v4h-12z" fill="#e8f3f7"/>' }) + can(335, 134, '#7a5a2a') + `<path d="M327 124q8-5 16 0" stroke="#7a5a2a" fill="none"/><text x="335" y="104" font-size="8" fill="#7a5a2a" text-anchor="middle">汚れた水</text>`, FLOOR),
+  media: () => sc(tree(50, 124, 1) + house(120, 124, '#dcc08f', '#a8573a') + house(185, 126, '#e6c79c', '#8f4a34', .85)
+    + person(250, 138, '#d0617a', 1.1, { skin: '#6f4428', scarf: '#e0a030' }) + kid(228, 146, '#4a9a6a')
+    + person(318, 138, '#2b2f3a', 1.1, { skin: '#d9a982', hair: '#222', extra: '<rect x="-14" y="-24" width="22" height="13" rx="2" fill="#333"/><circle cx="-12" cy="-17" r="4.5" fill="#9fd0ee" stroke="#111"/><circle cx="-5" cy="-27" r="1.5" fill="#d33"/>' })
+    + `<g transform="translate(284 104)"><path d="M0 0v18" stroke="#444" stroke-width="2"/><ellipse cy="-2" rx="5" ry="4" fill="#444"/></g><rect x="352" y="64" width="36" height="24" rx="3" fill="#222"/><rect x="355" y="67" width="30" height="18" fill="#6fb4d8"/><text x="370" y="80" font-size="8" fill="#fff" text-anchor="middle">NEWS</text>`),
+  rate: () => sc(wall('#e7eef3') + `<g transform="translate(40 24)"><rect width="150" height="88" rx="6" fill="#fff" stroke="#b8c4cc"/><g fill="#cf4d63"><rect x="14" y="18" width="18" height="60"/><rect x="42" y="30" width="18" height="48"/><rect x="70" y="44" width="18" height="34"/><rect x="98" y="58" width="18" height="20"/></g><path d="M16 12l116 52" stroke="#c8553d" stroke-width="3" stroke-dasharray="6 4"/><path d="M122 66l14 2-6-12z" fill="#c8553d"/></g>`
+    + `<g transform="translate(260 92)"><ellipse cy="14" rx="40" ry="8" fill="#000" opacity=".18"/><ellipse cy="8" rx="34" ry="9" fill="#b8892a"/><ellipse cy="2" rx="34" ry="9" fill="#e0b341"/><ellipse cy="-4" rx="34" ry="9" fill="#b8892a"/><ellipse cy="-10" rx="34" ry="9" fill="#e0b341"/><circle cy="-48" r="30" fill="#e0b341" stroke="#a8801f" stroke-width="4"/><text y="-37" font-size="38" font-weight="bold" fill="#fff6d0" text-anchor="middle">¥</text></g><text x="115" y="136" font-size="18" fill="#c8553d" text-anchor="middle" font-weight="bold">円安で目減り</text>`, FLOOR),
+  grant: () => sc(wall('#eef0e4') + `<rect x="30" y="24" width="64" height="48" fill="#cfe9f7" stroke="#8a7a60" stroke-width="3"/>` + desk(60, 100, 280)
+    + `<g transform="translate(110 70)"><rect width="86" height="30" rx="3" fill="#2d3640"/><rect x="4" y="3" width="78" height="22" fill="#e9f2f7"/><rect x="10" y="8" width="40" height="3" fill="#8aa"/><rect x="10" y="14" width="56" height="3" fill="#bcd"/><rect x="-6" y="30" width="98" height="4" rx="2" fill="#6a737c"/></g>`
+    + `<g transform="translate(222 82) rotate(-4)"><rect width="46" height="18" fill="#fff" stroke="#aaa"/><rect y="-4" width="46" height="18" fill="#f6f6ee" stroke="#aaa"/></g><circle cx="300" cy="86" r="14" fill="#3f9a5a"/><path d="M293 86l5 5 9-11" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/><rect x="326" y="88" width="10" height="12" fill="#fff" stroke="#aaa"/><path d="M336 91h4v6h-4" stroke="#aaa" fill="none"/>`
+    + person(80, 118, '#3f73b4', 1.15, { vest: 1 }) + person(360, 118, '#d0617a', 1.05, { skin: '#d9a982', hair: '#2a1a10' }), FLOOR),
+  elder: () => sc(tree(60, 124, 1.25) + tree(350, 126, 1) + house(300, 120, '#dcc08f', '#8f4a34', .8)
+    + `<ellipse cx="200" cy="140" rx="110" ry="14" fill="#c9a877" opacity=".55"/>`
+    + person(200, 128, '#e9e2d0', 1.2, { skin: '#6f4428', hair: '#dcdcdc', hat: '#c9b27a', extra: '<path d="M-4 -20q4 9 8 0v8q-4 4-8 0z" fill="#e6e6e6"/><rect x="13" y="-22" width="2.4" height="40" fill="#6e4a2a"/>' })
+    + person(138, 140, '#d0617a', 1, { skin: '#7a4a2c', scarf: '#e0a030' }) + person(262, 140, '#4a9a6a', 1, { skin: '#6f4428' }) + kid(165, 148, '#e0a030') + kid(236, 149, '#3f73b4')
+    + person(95, 144, '#3f73b4', 1, { vest: 1 }) + `<path d="M104 118q22-12 40-6" stroke="#fff" stroke-width="1.6" fill="none" opacity=".0"/>`),
+  volunteer: () => sc(school(310, 126, .95) + tree(40, 126, .9) + `<path d="M0 150q80-22 160-24l90 0q-90 6-150 34H0z" fill="#c9a877" opacity=".75"/>`
+    + [0, 1, 2, 3].map(i => person(60 + i * 36, 138 + (i % 2) * 4, ['#e0a030', '#3f73b4', '#d0617a', '#4a9a6a'][i], 1.05, { skin: ['#e2b48a', '#d9a982', '#cf9b72', '#e8c09a'][i], hair: ['#2a1a10', '#6e4a2a', '#111', '#8a5a2a'][i], extra: '<rect x="-12" y="-14" width="9" height="16" rx="3" fill="#c8553d"/>' })).join('')
+    + kid(240, 148, '#e0a030', { skin: '#6f4428' }) + kid(262, 150, '#d0617a', { skin: '#7a4a2c' }) + `<path d="M205 118h24m-7-7l7 7-7 7" stroke="#fff" stroke-width="3" fill="none" opacity=".8"/>`),
+  end_good: () => sc(`<g fill="#ffd45a" opacity=".6">${Array.from({ length: 8 }, (_, i) => `<path d="M${30 + i * 48} ${10 + (i % 3) * 8}l3 8 8 1-6 5 2 8-7-5-7 5 2-8-6-5 8-1z"/>`).join('')}</g>`
+    + tree(30, 124, 1.1) + school(100, 124) + clinic(190, 124) + well(268, 126) + house(345, 124, '#e6c79c', '#a8573a', .85) + crops(300, 152, 8)
+    + person(135, 142, '#e0a030', 1, { skin: '#7a4a2c', scarf: '#d0617a' }) + person(225, 142, '#3f73b4', 1, { vest: 1 }) + person(250, 146, '#d0617a', 1) + kid(160, 148, '#4a9a6a') + kid(185, 150, '#e0a030') + kid(208, 148, '#3f73b4') + can(280, 156),
+    { sky: ['#f7a85c', '#ffe9b8'], hill: '#c9a07a', hill2: '#9a8a64' }),
+  end_mid: () => sc(cl(90, 30, '#fff', 1.1) + cl(290, 26, '#fff', 1) + tree(30, 124) + school(110, 124, .9) + clinic(192, 124, .9) + well(262, 126) + person(310, 142, '#3f73b4', 1, { vest: 1 }) + kid(340, 148, '#d0617a'),
+    { sky: ['#8fb7d4', '#dcebf3'] }),
+  end_bad: () => sc(cl(90, 30, '#8a9299', 1.2) + cl(290, 26, '#8a9299', 1.1) + house(120, 126, '#bdb4a6', '#8a6a5a')
+    + `<g transform="translate(220 126)"><rect x="-32" y="-30" width="64" height="30" fill="#c9bfa8"/><path d="M-36 -30l36-16 36 16z" fill="#7a6a5a"/><path d="M-26 -22l18 18M-8 -22l-18 18M8 -22l18 18" stroke="#6e4a2a" stroke-width="3"/><rect x="-6" y="-17" width="12" height="17" fill="#6e4328"/></g>`
+    + well(320, 128) + person(180, 144, '#8a8f95', 1, { skin: '#6f4428' }) + `<g stroke="#9a8f78" stroke-width="1.5" opacity=".6"><path d="M0 130q40-6 80 0M300 150q40-6 80 0"/></g>`,
+    { sky: ['#8a939b', '#c4cacf'], nosun: true, ground: ['#a9a68a', '#807d66'], hill: '#8e9a98', hill2: '#7d8a89' }),
 };
-const art = k => (ART[k]||ART.title)();
-function sceneArt(){
-  const p=G.prog, k=v=>.6+v/250, fl=v=>v>60?`<circle cx="0" cy="3" r="2.5" fill="#f08aa8"/>`:'';
-  return sc(G.trust<30?'#c9d3d9':'#bfe3f2', cloud(70,28)+cloud(250,22)+tree(25,125)+tree(375,127)
-    +school(95,124,k(p.edu))+clinic(200,124,k(p.hlt))+well(290,126,k(p.wtr))
-    +person(145,141,'#4a7fc1')+person(250,141,'#d0617a')+(G.own>40?person(330,141,'#e0a030'):'')
-    +(p.edu>60?`<g transform="translate(60 138)">${fl(p.edu)}</g>`:'')+(G.sup>70?`<circle cx="350" cy="30" r="22" fill="#ffd45a" opacity=".4"/>`:''));
-}
+
 const ACT_ART = {
-  train: () => sc('#e8f2fb', '<rect x="30" y="28" width="120" height="62" fill="#2f5f4a" stroke="#7a5230" stroke-width="4"/><text x="90" y="68" font-size="22" fill="#fff" text-anchor="middle">みんなで運営</text>'+person(220,140,'#4a7fc1',1.3)+person(270,142,'#d0617a',.9)+person(310,142,'#e0a030',.9)+person(350,142,'#4a9a6a',.9)),
-  pr: () => sc('#fff3d8', '<rect x="40" y="26" width="110" height="78" rx="4" fill="#fff" stroke="#999"/><rect x="50" y="36" width="90" height="30" fill="#9fd0ee"/><rect x="50" y="74" width="90" height="5" fill="#cfd5d9"/><rect x="50" y="86" width="60" height="5" fill="#cfd5d9"/><path d="M230 70l60-30v60z" fill="#d0617a"/><rect x="215" y="62" width="20" height="16" fill="#c8553d"/><path d="M305 50q14 20 0 40M320 40q22 30 0 60" stroke="#d9a441" stroke-width="5" fill="none" stroke-linecap="round"/>'+person(110,140,'#4a7fc1'),'#a8cf9a'),
-  rest: () => sc('#ffe3c2', '<path d="M60 118l60-60 60 60z" fill="#e8884a"/><path d="M105 118l15-28 15 28z" fill="#7a3a1a"/><path d="M275 30a20 20 0 1 0 22 22 16 16 0 0 1-22-22z" fill="#fff6c8"/>'+person(250,140,'#4a9a6a')+'<rect x="300" y="122" width="16" height="12" rx="2" fill="#fff" stroke="#999"/><path d="M304 116q-3-6 0-10m7 10q-3-6 0-10" stroke="#aaa" stroke-width="2" fill="none"/>','#a8bf8a'),
-  hire: () => sc('#e6f1e8', person(150,140,'#4a7fc1',1.2)+person(205,140,'#d0617a',1.2)+person(260,140,'#e0a030',1.2)+'<circle cx="320" cy="90" r="30" fill="#3f9a5a" stroke="#fff" stroke-width="4"/><path d="M320 74v32M304 90h32" stroke="#fff" stroke-width="8" stroke-linecap="round"/><g opacity=".6">'+person(80,140,'#999',1.2)+'</g>'),
+  train: () => sc(tree(55, 124, 1.2) + `<g transform="translate(150 100)"><rect x="0" y="0" width="64" height="44" fill="#fff" stroke="#8a7a60" stroke-width="2"/><text x="32" y="19" font-size="9" text-anchor="middle" fill="#2f5f4a" font-weight="bold">みんなで</text><text x="32" y="33" font-size="9" text-anchor="middle" fill="#2f5f4a" font-weight="bold">運営</text><rect x="-3" y="44" width="3" height="18" fill="#6e4a2a"/><rect x="64" y="44" width="3" height="18" fill="#6e4a2a"/></g>`
+    + person(120, 136, '#3f73b4', 1.05, { vest: 1 }) + person(240, 142, '#d0617a', .95, { skin: '#7a4a2c' }) + person(278, 144, '#e0a030', .95, { skin: '#6f4428' }) + person(316, 142, '#4a9a6a', .95) + person(352, 144, '#8a5aa8', .95, { skin: '#7a4a2c' })),
+  pr: () => sc(wall('#f6ead2') + `<rect x="30" y="18" width="150" height="80" rx="4" fill="#d6b88a" stroke="#8a6a40" stroke-width="3"/><rect x="42" y="30" width="38" height="26" fill="#9fd0ee"/><path d="M42 56l12-10 10 6 8-10 8 14z" fill="#6aa86a"/><rect x="88" y="30" width="38" height="26" fill="#f2c27a"/><circle cx="104" cy="42" r="6" fill="#d0463a" opacity=".7"/><rect x="134" y="30" width="34" height="26" fill="#bcd"/><rect x="42" y="64" width="120" height="5" fill="#fff"/><rect x="42" y="76" width="80" height="5" fill="#fff"/>`
+    + `<g transform="translate(250 84)"><rect width="34" height="62" rx="5" fill="#222"/><rect x="3" y="6" width="28" height="48" fill="#fff"/><path d="M17 40q-8-6-8-12a4 4 0 0 1 8-2 4 4 0 0 1 8 2q0 6-8 12z" fill="#e0536a"/></g><g stroke="#e0536a" stroke-width="2" fill="none" opacity=".8"><path d="M300 90q8 10 0 20M310 84q14 16 0 32"/></g>`
+    + person(220, 124, '#3f73b4', 1.1, { vest: 1, extra: '<path d="M12 -8l22-14v26z" fill="#d0617a"/><rect x="8" y="-12" width="8" height="8" fill="#c8553d"/>' }), FLOOR),
+  rest: () => sc(`<path d="M30 124l46-62 46 62z" fill="#e8884a"/><path d="M76 62l46 62h-24z" fill="#000" opacity=".15"/><path d="M62 124l14-30 14 30z" fill="#6e3a1a"/>`
+    + `<g transform="translate(220 130)"><path d="M-12 0q12-14 24 0z" fill="#e8884a"/><path d="M-8 0q8-22 0-28 14 8 8 28z" fill="#ffcf4a"/><path d="M-4 0q4-12 0-16 8 4 4 16z" fill="#fff3b0"/><rect x="-16" y="-2" width="32" height="4" rx="2" fill="#6e4a2a"/></g>`
+    + person(180, 138, '#4a9a6a', 1, { vest: 1 }) + person(262, 140, '#d0617a', 1, { skin: '#7a4a2c' }) + `<g transform="translate(300 148)"><rect x="-8" y="-12" width="16" height="12" rx="2" fill="#fff" stroke="#999"/><path d="M-3 -16q-3-6 0-10m6 10q-3-6 0-10" stroke="#bbb" stroke-width="1.5" fill="none"/></g>`
+    + `<path d="M330 40a16 16 0 1 0 18 18 13 13 0 0 1-18-18z" fill="#fff6c8"/>`, { sky: ['#e8884a', '#ffe3c2'], nosun: false, hill: '#b08a64', hill2: '#8a7a56' }),
+  hire: () => sc(clinic(70, 124, .9) + house(340, 124, '#e6c79c', '#a8573a', .85)
+    + person(165, 138, '#3f73b4', 1.15, { vest: 1 }) + person(238, 138, '#8a5aa8', 1.15, { vest: 1, skin: '#d9a982', hair: '#2a1a10' })
+    + `<path d="M180 128l14 0 0 4-14 0z" fill="#8a5a3c"/><circle cx="302" cy="64" r="26" fill="#3f9a5a" stroke="#fff" stroke-width="4"/><path d="M302 50v28M288 64h28" stroke="#fff" stroke-width="7" stroke-linecap="round"/>`),
 };
-const actArt = k => (ACT_ART[k]||(()=>''))();
+const AREA_ART = {
+  edu: () => sc(school(120, 124, 1.2) + tree(40, 126, .9) + kid(210, 142, '#d0617a', { skin: '#7a4a2c' }) + kid(240, 144, '#e0a030') + kid(268, 142, '#3f73b4', { skin: '#6f4428' }) + person(320, 140, '#4a7fc1', 1, { vest: 1 })),
+  hlt: () => sc(clinic(110, 124, 1.2) + tree(360, 126, .9) + person(215, 140, '#d0617a', 1.05, { skin: '#7a4a2c', scarf: '#e0a030', extra: '<circle cx="-9" cy="-4" r="5" fill="#f2c9a6"/><path d="M-13 -6q4-5 8 0v6h-8z" fill="#fff" opacity=".9"/>' }) + person(268, 140, '#fff', 1.05, { skin: '#6f4428', hat: '#fff', pants: '#d6dde0' }) + kid(310, 146, '#4a9a6a')),
+  wtr: () => sc(well(130, 126, 1.25) + tree(40, 126, .9) + person(215, 140, '#d0617a', 1, { skin: '#7a4a2c', scarf: '#e0a030' }) + can(236, 156) + kid(262, 146, '#3f73b4') + can(278, 156, '#2f86a8') + kid(310, 146, '#e0a030') + crops(330, 154, 3)),
+};
+const art = k => (ART[k] || ART.title)();
+const actArt = k => (ACT_ART[k] || (() => ''))();
+const areaArt = k => (AREA_ART[k] || (() => ''))();
+function sceneArt() {
+  const p = G.prog, k = v => .62 + v / 220;
+  return sc(cl(70, 28, '#fff', 1) + cl(250, 22, '#fff', 1.1) + tree(26, 124, 1) + tree(376, 128, .9)
+    + (p.wtr > 25 ? crops(318, 150, Math.min(8, 2 + Math.floor(p.wtr / 14))) : '')
+    + school(95, 126, k(p.edu)) + clinic(198, 126, k(p.hlt)) + well(288, 128, k(p.wtr))
+    + `<path d="M120 160q40-18 90-34h30q-30 22-50 34z" fill="#c9a877" opacity=".55"/>`
+    + person(145, 142, '#3f73b4', 1, { vest: 1 }) + person(240, 144, '#d0617a', 1, { skin: '#7a4a2c', scarf: '#e0a030' })
+    + (G.own > 35 ? person(335, 146, '#e0a030', 1, { skin: '#6f4428' }) : '') + (p.edu > 30 ? kid(180, 150, '#4a9a6a') + kid(122, 152, '#d0617a') : '') + (p.hlt > 45 ? kid(215, 152, '#3f73b4') : '') + (G.own > 60 ? person(60, 146, '#8a5aa8', 1) + can(270, 157) : ''),
+    { sky: G.trust < 30 ? ['#9aa7b0', '#d3dade'] : ['#5fb0e6', '#d9f0fb'], nosun: false });
+}
+
 const AREAS = [
   {id:'edu', icon:'📚', name:'教育', color:'var(--edu)', desc:'学校運営・教員研修・教材'},
   {id:'hlt', icon:'🩺', name:'保健', color:'var(--hlt)', desc:'診療所・母子保健・予防接種'},
@@ -203,10 +299,71 @@ const EVENTS = [
     learn:'ボランティアの受け入れは、教育効果もある一方で、現地の負担にもなります。'},
 ];
 
+const TIPS = [
+  {c:g=>g.own<25&&g.m>3, t:'「自立度」が低いままです。外から来たNGOが主役だと、撤退した後に活動が止まってしまいます。地域リーダー研修で、住民が運営する力を育てましょう。（持続可能性）'},
+  {c:g=>g.trust<35, t:'地域の信頼が下がっています。信頼は、すべての活動の土台です。住民の声を聞き、約束を守ることから立て直しましょう。'},
+  {c:g=>g.morale<35, t:'スタッフの元気が下がっています。支援の現場では燃え尽きが大きな課題です。休息も大切な仕事のうち。'},
+  {c:g=>g.funds<120, t:'資金が少なくなってきました。1つの大口寄付に頼ると、止まったときに活動も止まります。多くの人からの小口の寄付は、安定した運営につながります。'},
+  {c:g=>g.sup<30, t:'支援者が減っています。寄付をしてくれた人に、使い道と成果を報告することを「説明責任（アカウンタビリティ）」といいます。報告は信頼の源です。'},
+  {c:g=>g.prog.wtr<g.prog.hlt-15, t:'水・衛生が遅れています。汚れた水は病気の大きな原因になるため、保健と水・衛生は切り離せません。'},
+  {c:g=>g.prog.edu>55, t:'教育が進んでいます。SDGs（持続可能な開発目標）の目標4は「質の高い教育をみんなに」。学校があるだけでなく、教える人と学び続けられる環境が大切です。'},
+  {c:g=>g.prog.hlt>55, t:'保健が進んでいます。SDGsの目標3は「すべての人に健康と福祉を」。病気になってから治すだけでなく、予防が大きな力を発揮します。'},
+];
+const GENERIC_TIPS = [
+  'SDGsは2015年に国連で採択された、2030年までの17の目標です。「誰一人取り残さない」ことを大切にしています。',
+  '活動を始める前に、住民が何に困っているかを聞くこと（ニーズ調査）が大切です。支援する側の思い込みで進めると、使われない施設ができてしまうことがあります。',
+  '井戸や学校をつくるだけでは終わりません。壊れたときに直す人・お金・仕組みがなければ、数年で使えなくなることがあります。',
+  '活動の成果を測って振り返ることを「モニタリングと評価」といいます。人数だけでなく、暮らしがどう変わったかを見ることが大切です。',
+  '女性や子ども、障がいのある人など、声が届きにくい人の意見も聞く視点（ジェンダーや包摂）が、本当に必要な支援につながります。',
+  '災害の直後に食料や医療を届けるのは「緊急支援」、学校や保健の仕組みを長期でつくるのは「開発支援」。目的も進め方も異なります。',
+  '国連は2010年に、安全な水と衛生設備を使うことが人権であると認めました。',
+  '現地の人を雇い、現地の組織と協力することは、費用を抑えるだけでなく、文化や言葉への理解を深め、活動を長続きさせます。',
+];
+const QUIZ = [
+  {q:'SDGs（持続可能な開発目標）は、何年までの目標でしょう？', o:['2030年','2050年','2100年'], a:0, why:'SDGsは2015年に国連で採択された、2030年までの17の目標です。'},
+  {q:'国際協力でいう「持続可能な支援」とは、どんな支援でしょう？', o:['できるだけ多くの物資を届ける支援','支援が終わった後も、現地の人たちが続けていける支援','短期間で成果を出す支援'], a:1, why:'持続可能な支援とは、外部の支援が終わっても、現地の人たちが自分たちで続けられる支援のことです。'},
+  {q:'寄付者に、お金の使い道と成果をきちんと報告する責任を何というでしょう？', o:['説明責任（アカウンタビリティ）','広報活動','収益事業'], a:0, why:'説明責任（アカウンタビリティ）は、NGOが信頼を得るための基本です。お金の使い道と成果を、寄付者と地域の人の両方に説明します。'},
+  {q:'井戸を1本つくっただけで活動を終えると、どんなことが起こりやすいでしょう？', o:['地域が自動的に豊かになる','管理や修理の仕組みがなく、故障して使えなくなることがある','必ず水質が良くなり続ける'], a:1, why:'施設は、管理する人・費用・修理の知識がセットでなければ長持ちしません。住民による水管理委員会づくりが大切です。'},
+  {q:'洪水の直後に食料や薬を届ける支援は、次のどれにあたるでしょう？', o:['開発支援','緊急支援','広報支援'], a:1, why:'災害直後の命を守る支援は「緊急支援」。学校や保健の仕組みを長期でつくる「開発支援」とは目的が違います。'},
+];
+const GLOSS = [
+  ['SDGs（持続可能な開発目標）','2015年に国連で採択された、2030年までに世界が達成をめざす17の目標。貧困、教育、保健、水など幅広い分野を含みます。'],
+  ['持続可能性','支援が終わった後も、成果が続くこと。現地の人たちが自分で運営できる力が鍵です。'],
+  ['オーナーシップ（当事者意識）','活動を「自分たちのもの」として、地域の人たちが主体的に担うこと。'],
+  ['説明責任（アカウンタビリティ）','お金の使い道や成果を、寄付者や地域の人に説明する責任。'],
+  ['緊急支援と開発支援','災害や紛争の直後に命を守るのが緊急支援。教育や保健の仕組みを長期でつくるのが開発支援。'],
+  ['受益者','活動によって暮らしが良くなる人たち。「支援される側」ではなく、パートナーとして一緒に考えます。'],
+  ['モニタリングと評価','活動が計画どおり進んでいるか確認し（モニタリング）、成果を振り返る（評価）こと。'],
+];
+function addNote(t){ if(t && !G.notes.includes(t)) G.notes.push(t); }
+function pickTip(){
+  const cand = TIPS.filter(x=>x.c(G) && !G.tipsSeen.includes(x.t));
+  let t;
+  if(cand.length) t = cand[0].t;
+  else {
+    const rest = GENERIC_TIPS.filter(x=>!G.tipsSeen.includes(x));
+    const pool = rest.length ? rest : GENERIC_TIPS;
+    t = pool[Math.floor(Math.random()*pool.length)];
+  }
+  G.tipsSeen.push(t); G.tip = t; addNote(t);
+}
+function showQuiz(){
+  const q = QUIZ[G.qi++];
+  showModal('<h2>🧠 学びチェック（'+G.qi+'/'+QUIZ.length+'）</h2><p>'+q.q+'</p><div class="opts">'+q.o.map((t,i)=>'<button data-i="'+i+'">'+t+'</button>').join('')+'</div>');
+  $('#box').onclick = e=>{
+    const b=e.target.closest('button[data-i]'); if(!b) return;
+    const ok = +b.dataset.i===q.a; if(ok){ G.qOk++; G.trust+=2; }
+    addNote(q.why);
+    showModal('<h2>'+(ok?'<span class="quiz-ok">⭕ 正解！</span>':'<span class="quiz-ng">❌ 残念</span>')+'</h2><p>正解：'+q.o[q.a]+'</p><div class="learn">💡 '+q.why+'</div>'+(ok?'<p class="sub">学びを現場に活かし、地域の信頼 +2</p>':'')+'<div style="margin-top:14px;text-align:right"><button class="pri" id="qok">続ける</button></div>');
+    $('#box').onclick = e2=>{ if(e2.target.id==='qok'){ hideModal(); render(); } };
+    render();
+  };
+}
+
 const G = {
   m:1, funds:300, staff:6, trust:50, sup:50, morale:70, own:10, people:0,
   prog:{edu:10,hlt:10,wtr:10}, asg:{edu:2,hlt:2,wtr:1,fund:1},
-  picked:{}, hired:false, used:[], over:false,
+  picked:{}, hired:false, used:[], over:false, notes:[], qi:0, qOk:0, tip:null, tipsSeen:[],
   say(t){ this.logs.unshift(`${this.m}か月目：${t}`); },
   logs:[]
 };
@@ -223,6 +380,9 @@ function render(){
   G.trust=clamp(G.trust,0,100); G.sup=clamp(G.sup,0,100); G.morale=clamp(G.morale,0,100); G.own=clamp(G.own,0,100);
   AREAS.forEach(a=>G.prog[a.id]=clamp(G.prog[a.id],0,100));
   $('#scene').innerHTML = sceneArt();
+  $('#tip').innerHTML = G.tip ? '<b>💡 今月の学びのヒント</b><p>'+G.tip+'</p>' : '';
+  $('#ncount').textContent = G.notes.length;
+  $('#nlist').innerHTML = G.notes.map(n=>'<li>'+n+'</li>').join('');
   $('#stats').innerHTML = `
     <div class="stat"><span><span class="ic">📅</span>経過</span><b>${G.m} / ${MAXM}か月</b></div>
     <div class="stat"><span><span class="ic">💰</span>資金</span><b style="color:${G.funds<100?'var(--warn)':'inherit'}">${Math.round(G.funds)}万円</b></div>
@@ -232,7 +392,7 @@ function render(){
     <div class="stat"><span><span class="ic">💪</span>スタッフの元気</span><b>${Math.round(G.morale)}</b>${bar(G.morale,G.morale<30?'var(--warn)':'var(--main)')}</div>
     <div class="stat"><span><span class="ic">🌱</span>地域の自立度</span><b>${Math.round(G.own)}</b>${bar(G.own,'var(--edu)')}</div>
     <div class="stat"><span><span class="ic">🧑‍🤝‍🧑</span>支援を受けた人</span><b>${G.people.toLocaleString()}人</b></div>`;
-  $('#projects').innerHTML = AREAS.map(a=>`<div class="row"><div class="name"><span class="tag" style="background:${a.color}">${a.icon} ${a.name}</span> <b>${Math.round(G.prog[a.id])}%</b><small>${a.desc}</small>${bar(G.prog[a.id],a.color)}</div></div>`).join('');
+  $('#projects').innerHTML = AREAS.map(a=>`<div class="row"><div class="thumb">${areaArt(a.id)}</div><div class="name"><span class="tag" style="background:${a.color}">${a.icon} ${a.name}</span> <b>${Math.round(G.prog[a.id])}%</b><small>${a.desc}</small>${bar(G.prog[a.id],a.color)}</div></div>`).join('');
   const rows = [...AREAS.map(a=>({id:a.id,icon:a.icon,name:a.name,desc:'現場で活動（1人 現場費'+FIELD+'万円）'})), {id:'fund',icon:'💼',name:'資金調達・事務',desc:'寄付集め・助成金申請・経理'}];
   $('#assign').innerHTML = rows.map(r=>`<div class="row"><div class="name"><span class="ic">${r.icon}</span><b>${r.name}</b><small>${r.desc}</small></div>
     <div class="step"><button data-d="-1" data-id="${r.id}" ${G.asg[r.id]<=0?'disabled':''}>−</button><span class="n">${G.asg[r.id]}</span><button data-d="1" data-id="${r.id}" ${used()>=G.staff?'disabled':''}>＋</button></div></div>`).join('');
@@ -310,6 +470,7 @@ function showEvent(ev){
   $('#box').onclick = e=>{
     const b=e.target.closest('button[data-i]'); if(!b) return;
     ev.opts[+b.dataset.i].fn(G);
+    addNote(ev.learn);
     showModal(`${art(ev.id)}<h2>${ev.title}</h2><p>${ev.opts[+b.dataset.i].t} を選びました。</p><div class="learn">💡 ${ev.learn}</div><div style="margin-top:14px;text-align:right"><button class="pri" id="ok">次へ</button></div>`);
     $('#box').onclick = e2=>{ if(e2.target.id==='ok'){ hideModal(); if(G.funds<0){finish('資金ショート');return;} nextMonth(); render(); } };
     render();
@@ -318,7 +479,9 @@ function showEvent(ev){
 function nextMonth(){
   G.m++;
   if(G.m>MAXM){ finish(); return; }
+  pickTip();
   render();
+  if(G.qi<QUIZ.length && [5,9,13,17,21].includes(G.m)) showQuiz();
 }
 
 function finish(reason){
@@ -335,6 +498,7 @@ function finish(reason){
     <p><b>評価：${rank}</b>（スコア ${score}）</p><p>${msg}</p>
     <p class="sub">教育 ${Math.round(G.prog.edu)}% ／ 保健 ${Math.round(G.prog.hlt)}% ／ 水・衛生 ${Math.round(G.prog.wtr)}%<br>
     支援を受けた人 ${G.people.toLocaleString()}人 ／ 地域の信頼 ${Math.round(G.trust)} ／ 自立度 ${Math.round(G.own)}</p>
+    <p><b>📓 あなたが学んだこと（${G.notes.length}件）</b>　学びチェック ${G.qOk} / ${G.qi} 問正解</p><details><summary>学びノートを見る</summary><ul>${G.notes.map(n=>'<li>'+n+'</li>').join('')}</ul></details>
     <div class="learn">💡 国際協力で大切なのは、支援した人数だけではなく、現地の人が自分たちで続けられる力をどれだけ育てられたかです。</div>
     <div style="margin-top:14px;text-align:right"><button class="pri" onclick="location.reload()">もう一度遊ぶ</button></div>`);
   $('#box').onclick=null;
@@ -342,7 +506,8 @@ function finish(reason){
 
 $('#titleArt').innerHTML = art('title');
 $('#end').onclick = endTurn;
-$('#start').onclick = ()=>{ $('#title').style.display='none'; $('#game').style.display='block'; G.say('NGOの活動がはじまった。'); render(); };
+$('#start').onclick = ()=>{ $('#title').style.display='none'; $('#game').style.display='block'; G.say('NGOの活動がはじまった。'); pickTip(); render(); };
+$('#gloss').innerHTML = GLOSS.map(g=>'<dt>'+g[0]+'</dt><dd>'+g[1]+'</dd>').join('');
 </script>
 </body>
 </html>
