@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NGOをつくろう</title>
+<style>
+:root{--bg:#f4f1ea;--card:#fff;--ink:#23303a;--sub:#6b7780;--line:#e1dccf;--main:#1f7a6b;--main-d:#155a4f;--warn:#c8553d;--gold:#d9a441;--edu:#4a7fc1;--hlt:#d0617a;--wtr:#2fa4c4}
+@media(prefers-color-scheme:dark){:root{--bg:#171c20;--card:#212830;--ink:#e8ecef;--sub:#97a3ac;--line:#33404a;--main:#3bb59f;--main-d:#2a8f7d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:16px}
+h1{font-size:22px;margin:4px 0 2px}
+.sub{color:var(--sub);font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+.stat{background:var(--bg);border-radius:8px;padding:8px 10px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--sub)}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:4px}
+.bar i{display:block;height:100%;transition:width .4s}
+.row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.row:first-child{border-top:0}
+.row .name{flex:1;min-width:0}
+.row .name small{color:var(--sub);display:block}
+.step{display:flex;align-items:center;gap:6px}
+button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px}
+button:hover:not(:disabled){border-color:var(--main)}
+button:disabled{opacity:.4;cursor:default}
+button.pri{background:var(--main);color:#fff;border-color:var(--main);font-weight:bold;padding:10px 18px}
+button.pri:hover:not(:disabled){background:var(--main-d)}
+.step button{width:32px;padding:4px 0}
+.step .n{min-width:22px;text-align:center;font-weight:bold}
+.acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+.acts button{text-align:left}
+.acts button small{display:block;color:var(--sub)}
+.acts button.on{border-color:var(--main);background:rgba(31,122,107,.12)}
+#log{max-height:220px;overflow:auto;font-size:14px}
+#log p{margin:4px 0;padding-bottom:4px;border-bottom:1px dashed var(--line)}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:9}
+.modal.show{display:flex}
+.modal .box{background:var(--card);border-radius:14px;max-width:560px;width:100%;padding:20px;max-height:92vh;overflow:auto}
+.modal h2{margin:0 0 6px;font-size:18px}
+.modal .opts button{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px}
+.modal .opts small{display:block;color:var(--sub)}
+.learn{font-size:13px;color:var(--sub);border-left:3px solid var(--gold);padding-left:8px;margin-top:10px}
+.tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;color:#fff;margin-right:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>NGOをつくろう</h1>
+  <div class="sub">小さな国際協力NGOの代表になって、2年間（24か月）で現地の暮らしを良くしよう。</div>
+
+  <div id="game" style="display:none">
+    <div class="card">
+      <div class="stats" id="stats"></div>
+    </div>
+    <div class="card">
+      <b>活動地域の状況</b>
+      <div id="projects"></div>
+    </div>
+    <div class="card">
+      <b>今月のスタッフ配置</b> <span class="sub" id="free"></span>
+      <div id="assign"></div>
+    </div>
+    <div class="card">
+      <b>今月の特別な取り組み</b> <span class="sub">（複数選べます）</span>
+      <div class="acts" id="acts"></div>
+    </div>
+    <div style="text-align:center;margin:14px 0"><button class="pri" id="end">今月を終える ▶</button></div>
+    <div class="card"><b>活動の記録</b><div id="log"></div></div>
+  </div>
+
+  <div id="title" class="card">
+    <p>あなたは、ある国の農村地域で活動を始めたばかりの小さなNGOの代表です。資金・スタッフ・地域との信頼をやりくりしながら、教育・保健・水の3分野を前に進めます。</p>
+    <p>目標は、<b>自分たちが去っても続く変化</b>をつくること。お金を使えば成果が出ますが、現地の人たちが主役でなければ、活動は長続きしません。</p>
+    <button class="pri" id="start">活動をはじめる</button>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="box" id="box"></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const clamp = (v,a,b) => Math.max(a, Math.min(b, v));
+const rnd = (a,b) => a + Math.random()*(b-a);
+const MAXM = 24;
+
+const AREAS = [
+  {id:'edu', name:'教育', color:'var(--edu)', desc:'学校運営・教員研修・教材'},
+  {id:'hlt', name:'保健', color:'var(--hlt)', desc:'診療所・母子保健・予防接種'},
+  {id:'wtr', name:'水・衛生', color:'var(--wtr)', desc:'井戸・水管理委員会・衛生教育'},
+];
+
+const ACTIONS = [
+  {id:'train', name:'地域リーダー研修', cost:50, desc:'現地の人が運営を担えるようにする（信頼↑・自立↑）',
+    fn:g=>{g.trust+=6; g.own+=8; g.say('地域リーダー研修を開催。住民が活動の中心に立ち始めた。');}},
+  {id:'pr', name:'活動報告・広報', cost:30, desc:'支援者に成果を伝える（支援者↑）',
+    fn:g=>{g.sup+=8; g.say('活動報告会とSNS発信で、支援者との関係を深めた。');}},
+  {id:'rest', name:'スタッフ休息日', cost:10, desc:'無理を続けない（元気↑）',
+    fn:g=>{g.morale+=18; g.say('チーム全員で休息日。現場に笑顔が戻った。');}},
+  {id:'hire', name:'スタッフを1人採用', cost:80, desc:'人手が増える（毎月の人件費も増える）', once:true,
+    fn:g=>{g.staff+=1; g.morale+=2; g.say('新しい仲間が1人加わった。');}},
+];
+
+const EVENTS = [
+  {id:'flood', title:'大雨で道路が寸断された', text:'雨期の洪水で、村へ続く道が通れなくなりました。診療所への物資が止まっています。',
+    opts:[
+      {t:'緊急支援に資金を使う', s:'資金 -80万円 / 信頼 +8', fn:g=>{g.funds-=80; g.trust+=8; g.prog.hlt+=4; g.say('緊急支援で薬と食料を届けた。');}},
+      {t:'復旧を待つ', s:'保健 -8 / 信頼 -5', fn:g=>{g.prog.hlt-=8; g.trust-=5; g.say('物資が届かず、診療所は一時休止になった。');}}],
+    learn:'災害のとき、日頃の信頼関係と備えが支援の速さを決めます。'},
+  {id:'donor', title:'大口寄付の打診', text:'ある企業が200万円の寄付を申し出ました。ただし「来月までに目に見える成果を出し、ロゴ入り看板を村に設置してほしい」と条件が付いています。',
+    opts:[
+      {t:'条件を受け入れる', s:'資金 +200万円 / 信頼 -6', fn:g=>{g.funds+=200; g.trust-=6; g.own-=4; g.say('看板を設置。住民は少し複雑な顔をしていた。');}},
+      {t:'地域の意向に沿う形で再交渉する', s:'資金 +120万円 / 信頼 +3', fn:g=>{g.funds+=120; g.trust+=3; g.say('話し合いの末、地域の計画に沿った支援として受け取れた。');}},
+      {t:'断る', s:'支援者 +4', fn:g=>{g.sup+=4; g.say('寄付は見送った。支援者は誠実さを評価してくれた。');}}],
+    learn:'資金提供者の都合と、現地のニーズが食い違うことはよくあります。'},
+  {id:'corrupt', title:'「お礼」の要求', text:'許可証の手続きで、役所の担当者がそれとなく「お礼」を求めてきました。払えば手続きはすぐ終わります。',
+    opts:[
+      {t:'断って正式な手続きを待つ', s:'資金 -20万円（遅れの損失）/ 支援者 +5', fn:g=>{g.funds-=20; g.sup+=5; g.say('手続きは遅れたが、清廉な姿勢を貫いた。');}},
+      {t:'こっそり払う', s:'資金 -10万円 / 支援者 -15（発覚のリスク）', fn:g=>{g.funds-=10; g.sup-=15; g.say('手続きは進んだが、後味の悪さが残った。');}}],
+    learn:'不正への対応は、NGOの信用に直結します。'},
+  {id:'teacher', title:'教員が辞めたいと言っている', text:'村の学校の先生が、給料が安く生活が苦しいと相談してきました。',
+    opts:[
+      {t:'手当を出す（毎月の負担が増える）', s:'資金 -40万円 / 教育 +5', fn:g=>{g.funds-=40; g.prog.edu+=5; g.say('手当を出し、先生は残ってくれた。');}},
+      {t:'村と相談して、給与を村の予算で賄う仕組みをつくる', s:'自立 +6 / 教育 -2', fn:g=>{g.own+=6; g.prog.edu-=2; g.say('村と給与の仕組みを話し合った。時間はかかるが自立への一歩だ。');}}],
+    learn:'外部資金への依存は、支援が終わった後に活動が止まる原因になります。'},
+  {id:'epidemic', title:'下痢症が広がっている', text:'汚れた水が原因とみられる下痢症が、子どもたちの間で増えています。',
+    opts:[
+      {t:'保健チームを総動員する', s:'資金 -50万円 / 保健 +8 / 元気 -8', fn:g=>{g.funds-=50; g.prog.hlt+=8; g.morale-=8; g.say('総力で対応し、広がりを食い止めた。');}},
+      {t:'手洗い・水の処理を地域で教え合う', s:'水 +5 / 自立 +4', fn:g=>{g.prog.wtr+=5; g.own+=4; g.say('住民同士で衛生の知識を広めていった。');}}],
+    learn:'水と保健は切り離せません。予防が最も費用対効果の高い保健活動です。'},
+  {id:'media', title:'メディア取材の依頼', text:'テレビ局から取材の依頼。「かわいそうな子どもの映像」を撮りたいと言っています。',
+    opts:[
+      {t:'尊厳を守る形で、住民自身の声を伝えてもらう', s:'支援者 +6 / 信頼 +4', fn:g=>{g.sup+=6; g.trust+=4; g.say('住民が自分の言葉で語る、誠実な番組になった。');}},
+      {t:'求められた映像をそのまま提供', s:'資金 +60万円 / 信頼 -8', fn:g=>{g.funds+=60; g.trust-=8; g.say('寄付は集まったが、住民からは不満の声が出た。');}}],
+    learn:'「かわいそう」を売る募金は、現地の人の尊厳を傷つけることがあります。'},
+  {id:'rate', title:'為替が円安に', text:'円安が進み、現地で使える予算が目減りしました。',
+    opts:[{t:'やりくりする', s:'資金 -40万円', fn:g=>{g.funds-=40; g.say('為替の変動で予算が目減りした。');}}],
+    learn:'海外活動は為替の影響を受けます。余裕資金の確保が大切です。'},
+  {id:'grant', title:'助成金の公募', text:'財団が助成金を公募しています。申請書づくりには人手がかかります。',
+    opts:[
+      {t:'申請する（元気 -6）', s:'60%の確率で資金 +250万円', fn:g=>{g.morale-=6; if(Math.random()<.6){g.funds+=250;g.say('助成金が採択された！');}else{g.say('残念ながら不採択だった。');}}},
+      {t:'見送る', s:'変化なし', fn:g=>{g.say('今回は見送り、現場に集中した。');}}],
+    learn:'助成金は大きな資金源ですが、事務負担や使途の制限もあります。'},
+  {id:'elder', title:'長老が計画に反対している', text:'村の長老が「若い女性が学校や診療所の運営に関わるのは良くない」と反対しています。',
+    opts:[
+      {t:'時間をかけて対話する', s:'信頼 +6 / 教育 -3 / 保健 -3', fn:g=>{g.trust+=6; g.prog.edu-=3; g.prog.hlt-=3; g.say('何度も話し合い、少しずつ理解が得られた。');}},
+      {t:'計画をそのまま進める', s:'教育 +4 / 保健 +4 / 信頼 -12', fn:g=>{g.prog.edu+=4; g.prog.hlt+=4; g.trust-=12; g.say('計画は進んだが、地域との間に溝ができた。');}}],
+    learn:'文化や慣習を尊重しない「正しさ」の押しつけは、反発を生み長続きしません。'},
+  {id:'volunteer', title:'学生ボランティアが来た', text:'日本の大学生グループが、2週間の現地ボランティアを希望しています。',
+    opts:[
+      {t:'受け入れる', s:'資金 -30万円 / 支援者 +8 / 元気 -4', fn:g=>{g.funds-=30; g.sup+=8; g.morale-=4; g.say('学生たちは多くを学び、帰国後に応援団になってくれた。');}},
+      {t:'今回は断る', s:'変化なし', fn:g=>{g.say('受け入れる余裕がなく、お断りした。');}}],
+    learn:'ボランティアの受け入れは、教育効果もある一方で、現地の負担にもなります。'},
+];
+
+const G = {
+  m:1, funds:300, staff:6, trust:50, sup:50, morale:70, own:10, people:0,
+  prog:{edu:10,hlt:10,wtr:10}, asg:{edu:2,hlt:2,wtr:1,fund:1},
+  picked:{}, hired:false, used:[], over:false,
+  say(t){ this.logs.unshift(`${this.m}か月目：${t}`); },
+  logs:[]
+};
+G.say = function(t){ const p=document.createElement('p'); p.textContent=`${this.m}か月目：${t}`; $('#log').prepend(p); };
+
+const SAL = 12;      // 1人あたり人件費（万円/月）
+const FIELD = 6;     // 現場活動費（万円/人）
+function used(){ return G.asg.edu+G.asg.hlt+G.asg.wtr+G.asg.fund; }
+function cost(){ return G.staff*SAL + (G.asg.edu+G.asg.hlt+G.asg.wtr)*FIELD
+  + ACTIONS.filter(a=>G.picked[a.id]).reduce((s,a)=>s+a.cost,0); }
+
+function bar(v,c){ return `<div class="bar"><i style="width:${clamp(v,0,100)}%;background:${c}"></i></div>`; }
+function render(){
+  G.trust=clamp(G.trust,0,100); G.sup=clamp(G.sup,0,100); G.morale=clamp(G.morale,0,100); G.own=clamp(G.own,0,100);
+  AREAS.forEach(a=>G.prog[a.id]=clamp(G.prog[a.id],0,100));
+  $('#stats').innerHTML = `
+    <div class="stat"><span>経過</span><b>${G.m} / ${MAXM}か月</b></div>
+    <div class="stat"><span>資金</span><b style="color:${G.funds<100?'var(--warn)':'inherit'}">${Math.round(G.funds)}万円</b></div>
+    <div class="stat"><span>スタッフ</span><b>${G.staff}人</b></div>
+    <div class="stat"><span>地域の信頼</span><b>${Math.round(G.trust)}</b>${bar(G.trust,'var(--main)')}</div>
+    <div class="stat"><span>支援者の数</span><b>${Math.round(G.sup)}</b>${bar(G.sup,'var(--gold)')}</div>
+    <div class="stat"><span>スタッフの元気</span><b>${Math.round(G.morale)}</b>${bar(G.morale,G.morale<30?'var(--warn)':'var(--main)')}</div>
+    <div class="stat"><span>地域の自立度</span><b>${Math.round(G.own)}</b>${bar(G.own,'var(--edu)')}</div>
+    <div class="stat"><span>支援を受けた人</span><b>${G.people.toLocaleString()}人</b></div>`;
+  $('#projects').innerHTML = AREAS.map(a=>`<div class="row"><div class="name"><span class="tag" style="background:${a.color}">${a.name}</span>${Math.round(G.prog[a.id])}%<small>${a.desc}</small>${bar(G.prog[a.id],a.color)}</div></div>`).join('');
+  const rows = [...AREAS.map(a=>({id:a.id,name:a.name,desc:'現場で活動（1人 現場費'+FIELD+'万円）'})), {id:'fund',name:'資金調達・事務',desc:'寄付集め・助成金申請・経理'}];
+  $('#assign').innerHTML = rows.map(r=>`<div class="row"><div class="name">${r.name}<small>${r.desc}</small></div>
+    <div class="step"><button data-d="-1" data-id="${r.id}" ${G.asg[r.id]<=0?'disabled':''}>−</button><span class="n">${G.asg[r.id]}</span><button data-d="1" data-id="${r.id}" ${used()>=G.staff?'disabled':''}>＋</button></div></div>`).join('');
+  $('#free').textContent = `（配置 ${used()} / ${G.staff}人）`;
+  $('#acts').innerHTML = ACTIONS.map(a=>{
+    const dis = a.once && G.hired;
+    return `<button data-act="${a.id}" class="${G.picked[a.id]?'on':''}" ${dis?'disabled':''}>${a.name}（${a.cost}万円）<small>${a.desc}</small></button>`;
+  }).join('');
+  $('#end').textContent = `今月を終える ▶（支出 約${cost()}万円）`;
+}
+
+$('#assign').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const id=b.dataset.id, d=+b.dataset.d;
+  if(d>0 && used()>=G.staff) return;
+  if(d<0 && G.asg[id]<=0) return;
+  G.asg[id]+=d; render();
+});
+$('#acts').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b||b.disabled) return;
+  G.picked[b.dataset.act] = !G.picked[b.dataset.act]; render();
+});
+
+function showModal(html){ $('#box').innerHTML=html; $('#modal').classList.add('show'); }
+function hideModal(){ $('#modal').classList.remove('show'); }
+
+function endTurn(){
+  if(G.over) return;
+  if(used()===0){ alert('スタッフを1人以上配置してください。'); return; }
+  // 特別な取り組み
+  ACTIONS.forEach(a=>{ if(G.picked[a.id]){ a.fn(G); if(a.once) G.hired=true; } });
+  const hiredNow = G.picked.hire;
+  // 支出
+  G.funds -= cost();
+  // 資金調達
+  const raised = Math.round(G.asg.fund*26*rnd(.8,1.3) + G.sup*1.5*rnd(.8,1.2));
+  G.funds += raised;
+  // 現場の成果（地域の信頼が高いほど効果的）
+  let gainTotal=0;
+  const eff = .5 + G.trust/100 + (G.morale<30?-.3:0);
+  AREAS.forEach(a=>{
+    const n = G.asg[a.id];
+    // 自立度が高いほど、スタッフがいなくても活動が維持される
+    const decay = n===0 ? Math.max(0, 3 - G.own/20) : Math.max(0, 1 - G.own/60);
+    const gain = n*3.2*eff*rnd(.85,1.15) - decay;
+    G.prog[a.id] += gain; gainTotal += Math.max(0,gain);
+  });
+  const helped = Math.round(gainTotal*14);
+  G.people += helped;
+  G.say(`寄付・助成で${raised}万円を調達。活動により${helped}人に新たに支援が届いた。`);
+  // 自然変化
+  G.morale -= 5 + (used()>G.staff-1?2:0);
+  G.trust += (G.asg.edu+G.asg.hlt+G.asg.wtr>=3?1:-1);
+  G.own += .5;
+  G.sup -= 1;
+  G.picked = {};
+  if(G.morale<20 && G.staff>2){ G.staff--; shrinkAssign(); G.say('疲れが限界に達し、スタッフが1人辞めてしまった…。'); G.morale+=15; }
+  if(G.funds<0){ finish('資金ショート'); return; }
+  // イベント
+  const pool = EVENTS.filter(e=>!G.used.includes(e.id));
+  if(pool.length && Math.random()<.65 && G.m<MAXM){
+    const ev = pool[Math.floor(Math.random()*pool.length)];
+    G.used.push(ev.id);
+    showEvent(ev);
+  } else nextMonth();
+  render();
+}
+function shrinkAssign(){
+  while(used()>G.staff){
+    for(const k of ['fund','wtr','hlt','edu']) if(G.asg[k]>0 && used()>G.staff) G.asg[k]--;
+  }
+}
+function showEvent(ev){
+  showModal(`<h2>${ev.title}</h2><p>${ev.text}</p><div class="opts">${ev.opts.map((o,i)=>`<button data-i="${i}">${o.t}<small>${o.s}</small></button>`).join('')}</div>`);
+  $('#box').onclick = e=>{
+    const b=e.target.closest('button[data-i]'); if(!b) return;
+    ev.opts[+b.dataset.i].fn(G);
+    showModal(`<h2>${ev.title}</h2><p>${ev.opts[+b.dataset.i].t} を選びました。</p><div class="learn">💡 ${ev.learn}</div><div style="margin-top:14px;text-align:right"><button class="pri" id="ok">次へ</button></div>`);
+    $('#box').onclick = e2=>{ if(e2.target.id==='ok'){ hideModal(); if(G.funds<0){finish('資金ショート');return;} nextMonth(); render(); } };
+    render();
+  };
+}
+function nextMonth(){
+  G.m++;
+  if(G.m>MAXM){ finish(); return; }
+  render();
+}
+
+function finish(reason){
+  G.over=true;
+  const avg = (G.prog.edu+G.prog.hlt+G.prog.wtr)/3;
+  const score = Math.round(avg*0.35 + G.own*0.3 + G.trust*0.2 + Math.min(100,G.people/60)*0.15);
+  let rank, msg;
+  if(reason){ rank='活動停止'; msg='資金が尽き、活動を続けられなくなりました。お金の流れを見通す力もNGO運営には欠かせません。'; }
+  else if(score>=70){ rank='S：持続的な変化をつくった'; msg='地域の人々が主役となり、あなたが去っても続く仕組みが根づきました。理想的な国際協力です。'; }
+  else if(score>=55){ rank='A：確かな成果を残した'; msg='多くの人の暮らしが良くなりました。次は「自立」をさらに意識すると、変化が長続きします。'; }
+  else if(score>=40){ rank='B：道半ば'; msg='成果は出ましたが、支援が止まると元に戻る不安が残ります。地域との対話を増やしましょう。'; }
+  else { rank='C：課題が多く残った'; msg='活動を通じて多くを学びました。信頼と自立、資金のバランスを見直してみましょう。'; }
+  showModal(`<h2>${reason?'ゲームオーバー：'+reason:'2年間の活動が終了しました'}</h2>
+    <p><b>評価：${rank}</b>（スコア ${score}）</p><p>${msg}</p>
+    <p class="sub">教育 ${Math.round(G.prog.edu)}% ／ 保健 ${Math.round(G.prog.hlt)}% ／ 水・衛生 ${Math.round(G.prog.wtr)}%<br>
+    支援を受けた人 ${G.people.toLocaleString()}人 ／ 地域の信頼 ${Math.round(G.trust)} ／ 自立度 ${Math.round(G.own)}</p>
+    <div class="learn">💡 国際協力で大切なのは、支援した人数だけではなく、現地の人が自分たちで続けられる力をどれだけ育てられたかです。</div>
+    <div style="margin-top:14px;text-align:right"><button class="pri" onclick="location.reload()">もう一度遊ぶ</button></div>`);
+  $('#box').onclick=null;
+}
+
+$('#end').onclick = endTurn;
+$('#start').onclick = ()=>{ $('#title').style.display='none'; $('#game').style.display='block'; G.say('NGOの活動がはじまった。'); render(); };
+</script>
+</body>
+</html>
