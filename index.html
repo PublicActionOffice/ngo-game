@@ -5,24 +5,28 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NGOをつくろう</title>
 <style>
-:root{--bg:#f4f1ea;--card:#fff;--ink:#23303a;--sub:#6b7780;--line:#e1dccf;--main:#1f7a6b;--main-d:#155a4f;--warn:#c8553d;--gold:#d9a441;--edu:#4a7fc1;--hlt:#d0617a;--wtr:#2fa4c4}
-@media(prefers-color-scheme:dark){:root{--bg:#171c20;--card:#212830;--ink:#e8ecef;--sub:#97a3ac;--line:#33404a;--main:#3bb59f;--main-d:#2a8f7d}}
+:root{--bg:#f4f1ea;--card:#fff;--ink:#121a20;--sub:#3b4750;--line:#e1dccf;--main:#1f7a6b;--main-d:#155a4f;--warn:#c8553d;--gold:#d9a441;--edu:#4a7fc1;--hlt:#d0617a;--wtr:#2fa4c4}
+@media(prefers-color-scheme:dark){:root{--bg:#171c20;--card:#212830;--ink:#f4f7f9;--sub:#cdd6dc;--line:#33404a;--main:#3bb59f;--main-d:#2a8f7d}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:"Hiragino Sans","Yu Gothic UI","Meiryo",sans-serif;line-height:1.6}
 .wrap{max-width:860px;margin:0 auto;padding:16px}
 h1{font-size:22px;margin:4px 0 2px}
-.sub{color:var(--sub);font-size:13px}
+.sub{color:var(--sub);font-size:14px}
+body{font-size:16px}
+.ic{display:inline-block;width:1.5em;text-align:center;margin-right:2px}
+.acts button .art{margin:0 0 6px;border:1px solid var(--line)}
+.acts button b{font-size:15px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
 .stat{background:var(--bg);border-radius:8px;padding:8px 10px}
 .stat b{display:block;font-size:20px}
-.stat span{font-size:12px;color:var(--sub)}
+.stat span{font-size:13px;color:var(--sub);font-weight:600}
 .bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin-top:4px}
 .bar i{display:block;height:100%;transition:width .4s}
 .row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .row:first-child{border-top:0}
 .row .name{flex:1;min-width:0}
-.row .name small{color:var(--sub);display:block}
+.row .name small{color:var(--sub);display:block;font-size:13px}
 .step{display:flex;align-items:center;gap:6px}
 button{font:inherit;cursor:pointer;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px}
 button:hover:not(:disabled){border-color:var(--main)}
@@ -32,8 +36,8 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
 .step button{width:32px;padding:4px 0}
 .step .n{min-width:22px;text-align:center;font-weight:bold}
 .acts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
-.acts button{text-align:left}
-.acts button small{display:block;color:var(--sub)}
+.acts button{text-align:left;display:flex;flex-direction:column;justify-content:flex-start;align-items:stretch}
+.acts button small{display:block;color:var(--sub);font-size:13px}
 .acts button.on{border-color:var(--main);background:rgba(31,122,107,.12)}
 #log{max-height:220px;overflow:auto;font-size:14px}
 #log p{margin:4px 0;padding-bottom:4px;border-bottom:1px dashed var(--line)}
@@ -42,8 +46,8 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
 .modal .box{background:var(--card);border-radius:14px;max-width:560px;width:100%;padding:20px;max-height:92vh;overflow:auto}
 .modal h2{margin:0 0 6px;font-size:18px}
 .modal .opts button{display:block;width:100%;text-align:left;margin-top:8px;padding:10px 12px}
-.modal .opts small{display:block;color:var(--sub)}
-.learn{font-size:13px;color:var(--sub);border-left:3px solid var(--gold);padding-left:8px;margin-top:10px}
+.modal .opts small{display:block;color:var(--sub);font-size:13px}
+.learn{font-size:14px;color:var(--sub);border-left:3px solid var(--gold);padding-left:8px;margin-top:10px}
 .art{width:100%;height:auto;border-radius:10px;display:block;margin-bottom:10px}
 .tag{display:inline-block;font-size:11px;padding:1px 8px;border-radius:10px;color:#fff;margin-right:6px}
 </style>
@@ -59,19 +63,19 @@ button.pri:hover:not(:disabled){background:var(--main-d)}
       <div class="stats" id="stats"></div>
     </div>
     <div class="card">
-      <b>活動地域の状況</b>
+      <b><span class="ic">🗺️</span>活動地域の状況</b>
       <div id="projects"></div>
     </div>
     <div class="card">
-      <b>今月のスタッフ配置</b> <span class="sub" id="free"></span>
+      <b><span class="ic">🧑‍💼</span>今月のスタッフ配置</b> <span class="sub" id="free"></span>
       <div id="assign"></div>
     </div>
     <div class="card">
-      <b>今月の特別な取り組み</b> <span class="sub">（複数選べます）</span>
+      <b><span class="ic">✨</span>今月の特別な取り組み</b> <span class="sub">（複数選べます）</span>
       <div class="acts" id="acts"></div>
     </div>
     <div style="text-align:center;margin:14px 0"><button class="pri" id="end">今月を終える ▶</button></div>
-    <div class="card"><b>活動の記録</b><div id="log"></div></div>
+    <div class="card"><b><span class="ic">📒</span>活動の記録</b><div id="log"></div></div>
   </div>
 
   <div id="title" class="card">
@@ -123,20 +127,27 @@ function sceneArt(){
     +person(145,141,'#4a7fc1')+person(250,141,'#d0617a')+(G.own>40?person(330,141,'#e0a030'):'')
     +(p.edu>60?`<g transform="translate(60 138)">${fl(p.edu)}</g>`:'')+(G.sup>70?`<circle cx="350" cy="30" r="22" fill="#ffd45a" opacity=".4"/>`:''));
 }
+const ACT_ART = {
+  train: () => sc('#e8f2fb', '<rect x="30" y="28" width="120" height="62" fill="#2f5f4a" stroke="#7a5230" stroke-width="4"/><text x="90" y="68" font-size="22" fill="#fff" text-anchor="middle">みんなで運営</text>'+person(220,140,'#4a7fc1',1.3)+person(270,142,'#d0617a',.9)+person(310,142,'#e0a030',.9)+person(350,142,'#4a9a6a',.9)),
+  pr: () => sc('#fff3d8', '<rect x="40" y="26" width="110" height="78" rx="4" fill="#fff" stroke="#999"/><rect x="50" y="36" width="90" height="30" fill="#9fd0ee"/><rect x="50" y="74" width="90" height="5" fill="#cfd5d9"/><rect x="50" y="86" width="60" height="5" fill="#cfd5d9"/><path d="M230 70l60-30v60z" fill="#d0617a"/><rect x="215" y="62" width="20" height="16" fill="#c8553d"/><path d="M305 50q14 20 0 40M320 40q22 30 0 60" stroke="#d9a441" stroke-width="5" fill="none" stroke-linecap="round"/>'+person(110,140,'#4a7fc1'),'#a8cf9a'),
+  rest: () => sc('#ffe3c2', '<path d="M60 118l60-60 60 60z" fill="#e8884a"/><path d="M105 118l15-28 15 28z" fill="#7a3a1a"/><path d="M275 30a20 20 0 1 0 22 22 16 16 0 0 1-22-22z" fill="#fff6c8"/>'+person(250,140,'#4a9a6a')+'<rect x="300" y="122" width="16" height="12" rx="2" fill="#fff" stroke="#999"/><path d="M304 116q-3-6 0-10m7 10q-3-6 0-10" stroke="#aaa" stroke-width="2" fill="none"/>','#a8bf8a'),
+  hire: () => sc('#e6f1e8', person(150,140,'#4a7fc1',1.2)+person(205,140,'#d0617a',1.2)+person(260,140,'#e0a030',1.2)+'<circle cx="320" cy="90" r="30" fill="#3f9a5a" stroke="#fff" stroke-width="4"/><path d="M320 74v32M304 90h32" stroke="#fff" stroke-width="8" stroke-linecap="round"/><g opacity=".6">'+person(80,140,'#999',1.2)+'</g>'),
+};
+const actArt = k => (ACT_ART[k]||(()=>''))();
 const AREAS = [
-  {id:'edu', name:'教育', color:'var(--edu)', desc:'学校運営・教員研修・教材'},
-  {id:'hlt', name:'保健', color:'var(--hlt)', desc:'診療所・母子保健・予防接種'},
-  {id:'wtr', name:'水・衛生', color:'var(--wtr)', desc:'井戸・水管理委員会・衛生教育'},
+  {id:'edu', icon:'📚', name:'教育', color:'var(--edu)', desc:'学校運営・教員研修・教材'},
+  {id:'hlt', icon:'🩺', name:'保健', color:'var(--hlt)', desc:'診療所・母子保健・予防接種'},
+  {id:'wtr', icon:'💧', name:'水・衛生', color:'var(--wtr)', desc:'井戸・水管理委員会・衛生教育'},
 ];
 
 const ACTIONS = [
-  {id:'train', name:'地域リーダー研修', cost:50, desc:'現地の人が運営を担えるようにする（信頼↑・自立↑）',
+  {id:'train', icon:'🎓', name:'地域リーダー研修', cost:50, desc:'現地の人が運営を担えるようにする（信頼↑・自立↑）',
     fn:g=>{g.trust+=6; g.own+=8; g.say('地域リーダー研修を開催。住民が活動の中心に立ち始めた。');}},
-  {id:'pr', name:'活動報告・広報', cost:30, desc:'支援者に成果を伝える（支援者↑）',
+  {id:'pr', icon:'📣', name:'活動報告・広報', cost:30, desc:'支援者に成果を伝える（支援者↑）',
     fn:g=>{g.sup+=8; g.say('活動報告会とSNS発信で、支援者との関係を深めた。');}},
-  {id:'rest', name:'スタッフ休息日', cost:10, desc:'無理を続けない（元気↑）',
+  {id:'rest', icon:'☕', name:'スタッフ休息日', cost:10, desc:'無理を続けない（元気↑）',
     fn:g=>{g.morale+=18; g.say('チーム全員で休息日。現場に笑顔が戻った。');}},
-  {id:'hire', name:'スタッフを1人採用', cost:80, desc:'人手が増える（毎月の人件費も増える）', once:true,
+  {id:'hire', icon:'➕', name:'スタッフを1人採用', cost:80, desc:'人手が増える（毎月の人件費も増える）', once:true,
     fn:g=>{g.staff+=1; g.morale+=2; g.say('新しい仲間が1人加わった。');}},
 ];
 
@@ -213,22 +224,22 @@ function render(){
   AREAS.forEach(a=>G.prog[a.id]=clamp(G.prog[a.id],0,100));
   $('#scene').innerHTML = sceneArt();
   $('#stats').innerHTML = `
-    <div class="stat"><span>経過</span><b>${G.m} / ${MAXM}か月</b></div>
-    <div class="stat"><span>資金</span><b style="color:${G.funds<100?'var(--warn)':'inherit'}">${Math.round(G.funds)}万円</b></div>
-    <div class="stat"><span>スタッフ</span><b>${G.staff}人</b></div>
-    <div class="stat"><span>地域の信頼</span><b>${Math.round(G.trust)}</b>${bar(G.trust,'var(--main)')}</div>
-    <div class="stat"><span>支援者の数</span><b>${Math.round(G.sup)}</b>${bar(G.sup,'var(--gold)')}</div>
-    <div class="stat"><span>スタッフの元気</span><b>${Math.round(G.morale)}</b>${bar(G.morale,G.morale<30?'var(--warn)':'var(--main)')}</div>
-    <div class="stat"><span>地域の自立度</span><b>${Math.round(G.own)}</b>${bar(G.own,'var(--edu)')}</div>
-    <div class="stat"><span>支援を受けた人</span><b>${G.people.toLocaleString()}人</b></div>`;
-  $('#projects').innerHTML = AREAS.map(a=>`<div class="row"><div class="name"><span class="tag" style="background:${a.color}">${a.name}</span>${Math.round(G.prog[a.id])}%<small>${a.desc}</small>${bar(G.prog[a.id],a.color)}</div></div>`).join('');
-  const rows = [...AREAS.map(a=>({id:a.id,name:a.name,desc:'現場で活動（1人 現場費'+FIELD+'万円）'})), {id:'fund',name:'資金調達・事務',desc:'寄付集め・助成金申請・経理'}];
-  $('#assign').innerHTML = rows.map(r=>`<div class="row"><div class="name">${r.name}<small>${r.desc}</small></div>
+    <div class="stat"><span><span class="ic">📅</span>経過</span><b>${G.m} / ${MAXM}か月</b></div>
+    <div class="stat"><span><span class="ic">💰</span>資金</span><b style="color:${G.funds<100?'var(--warn)':'inherit'}">${Math.round(G.funds)}万円</b></div>
+    <div class="stat"><span><span class="ic">👥</span>スタッフ</span><b>${G.staff}人</b></div>
+    <div class="stat"><span><span class="ic">🤝</span>地域の信頼</span><b>${Math.round(G.trust)}</b>${bar(G.trust,'var(--main)')}</div>
+    <div class="stat"><span><span class="ic">📣</span>支援者の数</span><b>${Math.round(G.sup)}</b>${bar(G.sup,'var(--gold)')}</div>
+    <div class="stat"><span><span class="ic">💪</span>スタッフの元気</span><b>${Math.round(G.morale)}</b>${bar(G.morale,G.morale<30?'var(--warn)':'var(--main)')}</div>
+    <div class="stat"><span><span class="ic">🌱</span>地域の自立度</span><b>${Math.round(G.own)}</b>${bar(G.own,'var(--edu)')}</div>
+    <div class="stat"><span><span class="ic">🧑‍🤝‍🧑</span>支援を受けた人</span><b>${G.people.toLocaleString()}人</b></div>`;
+  $('#projects').innerHTML = AREAS.map(a=>`<div class="row"><div class="name"><span class="tag" style="background:${a.color}">${a.icon} ${a.name}</span> <b>${Math.round(G.prog[a.id])}%</b><small>${a.desc}</small>${bar(G.prog[a.id],a.color)}</div></div>`).join('');
+  const rows = [...AREAS.map(a=>({id:a.id,icon:a.icon,name:a.name,desc:'現場で活動（1人 現場費'+FIELD+'万円）'})), {id:'fund',icon:'💼',name:'資金調達・事務',desc:'寄付集め・助成金申請・経理'}];
+  $('#assign').innerHTML = rows.map(r=>`<div class="row"><div class="name"><span class="ic">${r.icon}</span><b>${r.name}</b><small>${r.desc}</small></div>
     <div class="step"><button data-d="-1" data-id="${r.id}" ${G.asg[r.id]<=0?'disabled':''}>−</button><span class="n">${G.asg[r.id]}</span><button data-d="1" data-id="${r.id}" ${used()>=G.staff?'disabled':''}>＋</button></div></div>`).join('');
   $('#free').textContent = `（配置 ${used()} / ${G.staff}人）`;
   $('#acts').innerHTML = ACTIONS.map(a=>{
     const dis = a.once && G.hired;
-    return `<button data-act="${a.id}" class="${G.picked[a.id]?'on':''}" ${dis?'disabled':''}>${a.name}（${a.cost}万円）<small>${a.desc}</small></button>`;
+    return `<button data-act="${a.id}" class="${G.picked[a.id]?'on':''}" ${dis?'disabled':''}>${actArt(a.id)}<span><span class="ic">${a.icon}</span><b>${a.name}（${a.cost}万円）</b></span><small>${a.desc}</small></button>`;
   }).join('');
   $('#end').textContent = `今月を終える ▶（支出 約${cost()}万円）`;
 }
