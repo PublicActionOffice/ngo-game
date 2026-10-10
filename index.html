@@ -400,7 +400,7 @@ function render(){
   $('#free').textContent = `（配置 ${used()} / ${G.staff}人）`;
   $('#acts').innerHTML = ACTIONS.map(a=>{
     const dis = a.once && G.hired;
-    return `<button data-act="${a.id}" class="${G.picked[a.id]?'on':''}" ${dis?'disabled':''}>${actArt(a.id)}<span><span class="ic">${a.icon}</span><b>${a.name}（${a.cost}万円）</b></span><small>${a.desc}</small></button>`;
+    return `<button data-act="${a.id}" class="${G.picked[a.id]?'on':''}" ${dis?'disabled':''}>${actArt(a.id)}<span><span class="ic">${a.icon}</span><b>${a.name}<span style="white-space:nowrap">（${a.cost}万円）</span></b></span><small>${a.desc}</small></button>`;
   }).join('');
   $('#end').textContent = `今月を終える ▶（支出 約${cost()}万円）`;
 }
