@@ -217,10 +217,16 @@ const AREA_ART = {
   hlt: () => sc(clinic(110, 124, 1.2) + tree(360, 126, .9) + person(215, 140, '#d0617a', 1.05, { skin: '#7a4a2c', scarf: '#e0a030', extra: '<circle cx="-9" cy="-4" r="5" fill="#f2c9a6"/><path d="M-13 -6q4-5 8 0v6h-8z" fill="#fff" opacity=".9"/>' }) + person(268, 140, '#fff', 1.05, { skin: '#6f4428', hat: '#fff', pants: '#d6dde0' }) + kid(310, 146, '#4a9a6a')),
   wtr: () => sc(well(130, 126, 1.25) + tree(40, 126, .9) + person(215, 140, '#d0617a', 1, { skin: '#7a4a2c', scarf: '#e0a030' }) + can(236, 156) + kid(262, 146, '#3f73b4') + can(278, 156, '#2f86a8') + kid(310, 146, '#e0a030') + crops(330, 154, 3)),
 };
-const art = k => (ART[k] || ART.title)();
-const actArt = k => (ACT_ART[k] || (() => ''))();
-const areaArt = k => (AREA_ART[k] || (() => ''))();
+const IMGS = new Set(['title','flood','donor','corrupt','teacher','epidemic','media','rate','grant','elder','volunteer','end_good','end_mid','end_bad','train','pr','rest','hire','edu','hlt','wtr']);
+const artImg = k => `<img class="art" src="img/art_${k}.webp" alt="" aria-hidden="true" width="960" height="384" decoding="async">`;
+const art = k => IMGS.has(k) ? artImg(k) : (ART[k] || ART.title)();
+const actArt = k => IMGS.has(k) ? artImg(k) : (ACT_ART[k] || (() => ''))();
+const areaArt = k => IMGS.has(k) ? artImg(k) : (AREA_ART[k] || (() => ''))();
 function sceneArt() {
+  const q = G.prog, avg = (q.edu + q.hlt + q.wtr) / 3;
+  return artImg(G.trust < 30 || avg < 15 ? 'end_mid' : avg < 55 ? 'title' : 'end_good');
+}
+function sceneArtOld() {
   const p = G.prog, k = v => .62 + v / 220;
   return sc(cl(70, 28, '#fff', 1) + cl(250, 22, '#fff', 1.1) + tree(26, 124, 1) + tree(376, 128, .9)
     + (p.wtr > 25 ? crops(318, 150, Math.min(8, 2 + Math.floor(p.wtr / 14))) : '')
